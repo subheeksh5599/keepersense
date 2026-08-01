@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 
 const MCP_URL = '/api';
 
@@ -60,12 +60,20 @@ function LogLine({ label, data, color }) {
 export default function PipelineView() {
   const [intent, setIntent] = useState('');
   const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('idle'); // idle | picking | running | done
   const [logs, setLogs] = useState([]);
   const [txHash, setTxHash] = useState(null);
   const [txUrl, setTxUrl] = useState(null);
   const [error, setError] = useState(null);
   const [matches, setMatches] = useState(null);
   const [selected, setSelected] = useState(null);
+  const successRef = useRef(null);
+
+  useEffect(() => {
+    if (txHash && successRef.current) {
+      successRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [txHash]);
 
   const addLog = useCallback((label, data, color) => {
     setLogs(prev => [...prev, { label, data, color, ts: Date.now() }]);
@@ -74,6 +82,7 @@ export default function PipelineView() {
   const discover = useCallback(async () => {
     if (!intent.trim() || running) return;
     setRunning(true);
+    setPhase('running');
     setLogs([]);
     setTxHash(null);
     setTxUrl(null);
@@ -93,9 +102,11 @@ export default function PipelineView() {
       }
       setMatches(discovered.matches);
       setSelected(discovered.top_match || discovered.matches[0]);
+      setPhase('picking');
     } catch (e) {
       setError(e.message);
       addLog('error', e.message, STEP_COLORS.error);
+      setPhase('done');
     } finally {
       setRunning(false);
     }
@@ -104,6 +115,7 @@ export default function PipelineView() {
   const executeSelected = useCallback(async (match) => {
     if (running || !match) return;
     setRunning(true);
+    setPhase('running');
     setError(null);
 
     try {
@@ -158,6 +170,7 @@ export default function PipelineView() {
       addLog('error', e.message, STEP_COLORS.error);
     } finally {
       setRunning(false);
+      setPhase('done');
     }
   }, [running, addLog]);
 
@@ -214,12 +227,12 @@ export default function PipelineView() {
                 disabled={running || !intent.trim()}
                 style={{ opacity: running ? 0.5 : 1, cursor: running ? 'wait' : 'pointer' }}
               >
-                {running ? 'Running...' : matches ? 'Search again' : 'Execute'}
+                {running ? 'Running...' : phase !== 'idle' ? 'Search again' : 'Execute'}
                 {!running && <span className="arr">↗</span>}
               </button>
             </div>
 
-            {matches && !running && (
+            {phase === 'picking' && (
               <div className="pl-pick">
                 <div className="pl-pick-head">
                   <span className="label" style={{ color: 'var(--zinc-500)' }}>
@@ -242,6 +255,15 @@ export default function PipelineView() {
               </div>
             )}
 
+            {phase === 'done' && (
+              <div className="pl-done">
+                <span className="label" style={{ color: 'var(--zinc-500)' }}>
+                  Run finished — results below
+                </span>
+                <span className="mono" style={{ color: 'var(--zinc-400)' }}>search again to start over</span>
+              </div>
+            )}
+
             {error && (
               <div className="pl-error">
                 <span className="label" style={{ color: '#DC2626', display: 'block', marginBottom: 6 }}>Error</span>
@@ -250,7 +272,7 @@ export default function PipelineView() {
             )}
 
             {txHash && (
-              <div className="pl-success">
+              <div className="pl-success" ref={successRef}>
                 <span className="label" style={{ color: 'var(--zinc-500)' }}>Tx</span>
                 <a href={txUrl} target="_blank" rel="noopener">
                   {txHash}
