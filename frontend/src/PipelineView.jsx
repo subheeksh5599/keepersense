@@ -172,13 +172,19 @@ export default function PipelineView() {
       const discovered = await callMCP('ks_discover', { intent });
       if (discovered.error) throw new Error(discovered.error);
       const top = discovered.top_match || (discovered.matches || [])[0];
+      const hiddenParts = [
+        discovered.marketplace_filtered_count
+          ? `${discovered.marketplace_filtered_count} marketplace hidden (free tier)`
+          : null,
+        discovered.filtered_paid_count
+          ? `${discovered.filtered_paid_count} paid/premium hidden`
+          : null,
+      ].filter(Boolean);
       addLog(
         'discover result',
         `Found ${(discovered.matches || []).length} matching workflows` +
           (top ? ` — top: "${top.name}" (score ${top.score}, ${top.chain})` : '') +
-          (discovered.filtered_paid_count
-            ? ` · ${discovered.filtered_paid_count} paid/premium hidden`
-            : ''),
+          (hiddenParts.length ? ` · ${hiddenParts.join(' · ')}` : ''),
         discovered,
         STEP_COLORS.discover
       );

@@ -424,11 +424,15 @@ async def kh_request(method: str, path: str, **kwargs) -> tuple[int, Any]:
 
 # ── MCP Tool implementations ───────────────────────────────────────
 
-async def ks_discover(intent: str, free_only: bool = True, limit: int = 10) -> dict:
-    """Search KeeperHub's marketplace + org workflows and return best matches.
+async def ks_discover(intent: str, free_only: bool = True, limit: int = 10,
+                      include_marketplace: bool = False) -> dict:
+    """Search KeeperHub workflows and return best matches.
 
-    free_only=True (default) removes paid/premium workflows (x402 / MPP /
-    per-call pricing) so everything returned executes on the free tier.
+    Free-tier reality: only workflows YOUR org owns can be cloned and
+    executed (marketplace workflows return 402 'requires a paid plan' /
+    404 on the free plan). So by default discovery returns org workflows
+    only — include_marketplace=True enables marketplace results for
+    paid-plan orgs. free_only additionally drops paid/premium listings.
     """
     if not KH_API_KEY:
         return missing_key_error()
@@ -464,13 +468,23 @@ async def ks_discover(intent: str, free_only: bool = True, limit: int = 10) -> d
     if free_only:
         filtered_paid = sum(1 for it in items if workflow_is_paid(it))
 
-    matches = rank_workflows(items, intent, limit=limit, free_only=free_only)
+    org_items = [it for it in items if it.get("_org")]
+    marketplace_items = [it for it in items if not it.get("_org")]
+    if include_marketplace:
+        matches = rank_workflows(items, intent, limit=limit, free_only=free_only)
+        marketplace_filtered = 0
+    else:
+        matches = rank_workflows(org_items, intent, limit=limit, free_only=free_only)
+        marketplace_filtered = len(marketplace_items)
+
     return {
         "intent": intent,
         "matches": matches,
         "top_match": matches[0] if matches else None,
         "free_only": free_only,
         "filtered_paid_count": filtered_paid,
+        "include_marketplace": include_marketplace,
+        "marketplace_filtered_count": marketplace_filtered,
     }
 
 
@@ -531,7 +545,16 @@ async def ks_deploy(source_workflow_id: str, chain: str = DEFAULT_CHAIN,
 
     status, data = await kh_request("POST", f"/api/workflows/{wid}/duplicate", json=body)
     if status not in (200, 201):
-        return parse_api_error(data, f"Workflow deploy failed ({status})")
+        err = parse_api_error(data, f"Workflow deploy failed ({status})")
+        if status == 402 or "paid plan" in json.dumps(data)[:300].lower():
+            return {
+                "error": "paid_plan_required",
+                "detail": ("This workflow uses features that require a paid KeeperHub plan. "
+                           "On the free tier only your org's own workflows can be deployed and "
+                           "executed — ks_discover returns org workflows by default "
+                           "(include_marketplace=false)."),
+            }
+        return err
 
     new_id = str(_walk(data, "workflowId", "id", "workflow_id") or "")
     return {
@@ -789,6 +812,7 @@ TOOLS = {
                 "intent": {"type": "string", "description": "Natural language description of what you want to do onchain"},
                 "free_only": {"type": "boolean", "description": "Exclude paid/premium workflows (default: true)"},
                 "limit": {"type": "integer", "description": "Max matches to return (default: 10)"},
+                "include_marketplace": {"type": "boolean", "description": "Include marketplace workflows (needs a paid plan to use them; default: false)"},
             },
             "required": ["intent"],
         },
