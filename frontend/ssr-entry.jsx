@@ -9,7 +9,7 @@ export function runChecks() {
   const landingHtml = renderToString(React.createElement(Landing));
   const checks = [
     ['landing renders', landingHtml.length > 1000],
-    ['header logo', landingHtml.includes('Keeper') && landingHtml.includes('SENSE')],
+    ['header logo', landingHtml.includes('Zen') && landingHtml.includes('ITH')],
     ['hero title', landingHtml.includes('can reason')],
     ['5 tool rows', (landingHtml.match(/proj-row/g) || []).length >= 5],
     ['marquee', landingHtml.includes('mq-track')],
@@ -20,7 +20,7 @@ export function runChecks() {
   for (const [name, ok] of checks) out.push(`${ok ? 'PASS' : 'FAIL'} ${name}`);
 
   const pipeHtml = renderToString(React.createElement(PipelineView));
-  out.push(`${(pipeHtml.includes('Intent') && pipeHtml.includes('SENSE') && pipeHtml.includes('pl-card')) ? 'PASS' : 'FAIL'} pipeline view renders`);
+  out.push(`${(pipeHtml.includes('Intent') && pipeHtml.includes('ITH') && pipeHtml.includes('pl-card')) ? 'PASS' : 'FAIL'} pipeline view renders`);
 
   const failed = checks.filter(([, ok]) => !ok).length;
   out.push(failed === 0 ? 'ALL SSR CHECKS PASSED' : `${failed} CHECKS FAILED`);
