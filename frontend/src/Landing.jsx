@@ -43,7 +43,7 @@ const JOURNAL = [
   {
     no: '02',
     title: 'Discovery',
-    body: 'KeeperSense searches the KeeperHub workflow registry and scores every candidate against the intent. The agent sees ranked matches with confidence scores.',
+    body: 'Zenith searches the KeeperHub workflow registry and scores every candidate against the intent. The agent sees ranked matches with confidence scores.',
     meta: ['ENDPOINT: GET /api/workflows/public', 'RANKING: keyword + semantic', 'TOP MATCH: picked or chosen'],
   },
   {
@@ -139,8 +139,8 @@ export default function Landing() {
             <a href="#github">GitHub</a>
           </nav>
           <div className="h-logo">
-            <span className="serif-i">Keeper</span>
-            <span style={{ fontWeight: 900 }}>SENSE</span>
+            <span className="serif-i">Zen</span>
+            <span style={{ fontWeight: 900 }}>ITH</span>
           </div>
           <a className="h-cta" href="#/app">Launch Pipeline</a>
         </div>
@@ -169,7 +169,7 @@ export default function Landing() {
 
             <div className="h-right">
               <div className="h-frame">
-                <img src="/images/hero-pipeline.svg" alt="KeeperSense pipeline: intent to execution through KeeperHub" />
+                <img src="/images/hero-pipeline.svg" alt="Zenith pipeline: intent to execution through KeeperHub" />
               </div>
             </div>
           </div>
@@ -258,7 +258,7 @@ export default function Landing() {
             <div className="cs-title">
               Build the <span className="serif-i">last mile.</span>
             </div>
-            <a className="btn-start" href="https://github.com/subheeksh5599/keepersense" target="_blank" rel="noopener noreferrer">
+            <a className="btn-start" href="https://github.com/subheeksh5599/zenith" target="_blank" rel="noopener noreferrer">
               View source on GitHub
               <span className="arr">↗</span>
             </a>
@@ -269,14 +269,14 @@ export default function Landing() {
       {/* ── footer ─────────────────────────────────────────── */}
       <footer className="footer">
         <div className="container f-top">
-          <div className="f-label label">KeeperSense — intent to execution</div>
-          <a className="f-link" href="https://github.com/subheeksh5599/keepersense" target="_blank" rel="noopener noreferrer">
-            github.com/subheeksh5599/keepersense
+          <div className="f-label label">Zenith — intent to execution</div>
+          <a className="f-link" href="https://github.com/subheeksh5599/zenith" target="_blank" rel="noopener noreferrer">
+            github.com/subheeksh5599/zenith
           </a>
         </div>
         <div className="f-marquee">Keeper Sense Keeper Sense Keeper Sense Keeper Sense Keeper Sense Keeper Sense </div>
         <div className="container f-bottom">
-          <div className="f-copy">© 2026 KeeperSense · KeeperHub Agents Onchain Hackathon</div>
+          <div className="f-copy">© 2026 Zenith · KeeperHub Agents Onchain Hackathon</div>
         </div>
       </footer>
     </div>
