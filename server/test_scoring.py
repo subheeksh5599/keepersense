@@ -18,6 +18,7 @@ from mcp_server import (  # noqa: E402
     explorer_url_for,
     parse_balance_hex,
     compute_capped_amount,
+    workflow_is_paid,
 )
 
 
@@ -187,6 +188,28 @@ def test_chain_rpc_url_override():
     finally:
         if old is not None:
             os.environ["KEEPERHUB_RPC_OVERRIDE"] = old
+
+
+# ── free-tier filtering ────────────────────────────────────────────
+
+def test_workflow_is_paid():
+    paid = {"name": "Aave Risk Check", "description": "Pay $0.01 USDC, get a real-time snapshot."}
+    free = {"name": "KeeperSense Demo Transfer", "description": "Manual-trigger Sepolia ETH transfer"}
+    assert workflow_is_paid(paid) is True
+    assert workflow_is_paid(free) is False
+
+
+def test_rank_workflows_free_only_excludes_paid():
+    items = [
+        {"workflowId": "wf_free", "name": "ETH Transfer", "description": "send eth",
+         "nodes": [{"data": {"config": {"actionType": "web3/transfer-funds", "network": "11155111"}}}]},
+        {"workflowId": "wf_paid", "name": "Paid Risk Check", "description": "Pay $0.01 USDC per call",
+         "nodes": [{"data": {"config": {"actionType": "aave-v3/get-user-account-data"}}}]},
+    ]
+    out = rank_workflows(items, "transfer 0.001 eth", free_only=True)
+    ids = [m["workflow_id"] for m in out]
+    assert "wf_paid" not in ids
+    assert "wf_free" in ids
 
 
 if __name__ == "__main__":

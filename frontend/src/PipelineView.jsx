@@ -175,7 +175,10 @@ export default function PipelineView() {
       addLog(
         'discover result',
         `Found ${(discovered.matches || []).length} matching workflows` +
-          (top ? ` — top: "${top.name}" (score ${top.score}, ${top.chain})` : ''),
+          (top ? ` — top: "${top.name}" (score ${top.score}, ${top.chain})` : '') +
+          (discovered.filtered_paid_count
+            ? ` · ${discovered.filtered_paid_count} paid/premium hidden`
+            : ''),
         discovered,
         STEP_COLORS.discover
       );

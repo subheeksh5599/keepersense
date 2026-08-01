@@ -273,9 +273,26 @@ def _wallet_of(workflow: dict) -> str:
 
 ACTION_INTENT_WORDS = ("transfer", "send", "pay", "claim", "distribute", "sweep", "withdraw", "deposit", "stake", "swap", "bridge", "move", "execute")
 
+# Paid/premium workflows are detected from their listing text (KeeperHub
+# exposes no pricing field): "Pay $0.01 USDC", "x402", "MPP", per-call fees.
+PAID_WORKFLOW_PATTERN = re.compile(
+    r"(pay\s*\$|\$\s*\d+(?:\.\d+)?\s*(?:usdc|usd|pathusd|token)|\bx402\b|\bmpp\b|per-call|paid workflow|paid execution|settle[sd]?\s+on)",
+    re.IGNORECASE,
+)
 
-def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
-    """Normalize raw API items and rank them against the intent."""
+
+def workflow_is_paid(item: dict) -> bool:
+    """True if a workflow lists a price / x402 / MPP payment requirement."""
+    text = f"{workflow_name_of(item)} {_walk(item, 'description') or ''}"
+    return bool(PAID_WORKFLOW_PATTERN.search(text))
+
+
+def rank_workflows(items: list, intent: str, limit: int = 10, free_only: bool = True) -> list:
+    """Normalize raw API items and rank them against the intent.
+
+    With free_only=True (default), paid/premium workflows are excluded so
+    everything KeeperSense returns executes on the free tier.
+    """
     intent_lower = intent.lower()
     action_intent = any(w in intent_lower for w in ACTION_INTENT_WORDS)
     scored = []
@@ -284,6 +301,8 @@ def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
             continue
         wid = workflow_id_of(t)
         if not wid:
+            continue
+        if free_only and workflow_is_paid(t):
             continue
         executes = workflow_executes_onchain(t)
         s = score_template(t, intent)
@@ -405,8 +424,12 @@ async def kh_request(method: str, path: str, **kwargs) -> tuple[int, Any]:
 
 # ── MCP Tool implementations ───────────────────────────────────────
 
-async def ks_discover(intent: str) -> dict:
-    """Search KeeperHub's marketplace + org workflows and return best matches."""
+async def ks_discover(intent: str, free_only: bool = True, limit: int = 10) -> dict:
+    """Search KeeperHub's marketplace + org workflows and return best matches.
+
+    free_only=True (default) removes paid/premium workflows (x402 / MPP /
+    per-call pricing) so everything returned executes on the free tier.
+    """
     if not KH_API_KEY:
         return missing_key_error()
 
@@ -437,11 +460,17 @@ async def ks_discover(intent: str) -> dict:
     if not items:
         return parse_api_error(data, "KeeperHub workflow discovery failed")
 
-    matches = rank_workflows(items, intent)
+    filtered_paid = 0
+    if free_only:
+        filtered_paid = sum(1 for it in items if workflow_is_paid(it))
+
+    matches = rank_workflows(items, intent, limit=limit, free_only=free_only)
     return {
         "intent": intent,
         "matches": matches,
         "top_match": matches[0] if matches else None,
+        "free_only": free_only,
+        "filtered_paid_count": filtered_paid,
     }
 
 
@@ -569,6 +598,18 @@ async def ks_execute(workflow_id: str, input: dict | None = None, chain: str = D
 
         attempt += 1
         last_error = _walk(result, "error", "failureReason", "message") or state
+        err_text = json.dumps(result)[:600].lower()
+        if "paid plan" in err_text or "paid-tier" in err_text:
+            return {
+                "workflow_id": workflow_id,
+                "status": "failed",
+                "error": "paid_plan_required",
+                "detail": ("This workflow uses features that require a paid KeeperHub plan. "
+                           "KeeperSense runs free-tier: ks_discover excludes paid/premium "
+                           "workflows by default (free_only=true)."),
+                "retries": attempt,
+                "retry_log": retry_log,
+            }
         retry_log.append({"attempt": attempt, "status": state, "error": last_error})
 
     return {
@@ -741,11 +782,13 @@ async def ks_identity(action: str = "status", name: str = "KeeperSense",
 TOOLS = {
     "ks_discover": {
         "name": "ks_discover",
-        "description": "Discover KeeperHub workflows matching natural-language intent. Returns scored matches with confidence levels.",
+        "description": "Discover free-tier KeeperHub workflows matching natural-language intent. Returns scored matches with confidence levels (paid/premium workflows excluded by default).",
         "parameters": {
             "type": "object",
             "properties": {
-                "intent": {"type": "string", "description": "Natural language description of what you want to do onchain"}
+                "intent": {"type": "string", "description": "Natural language description of what you want to do onchain"},
+                "free_only": {"type": "boolean", "description": "Exclude paid/premium workflows (default: true)"},
+                "limit": {"type": "integer", "description": "Max matches to return (default: 10)"},
             },
             "required": ["intent"],
         },
