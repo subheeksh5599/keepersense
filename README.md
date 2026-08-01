@@ -20,6 +20,7 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 | Direct transfer (0.001 ETH) | `0x8a9dc43e…b6768dd` | https://sepolia.etherscan.io/tx/0x8a9dc43e09d9023f7d61f5f17808f846e2fc9dec2c4f5740b81c112b2f6768dd |
 | Full KeeperSense pipeline (configure → deploy → execute → audit) | `0xb461d675…f9842d9` | https://sepolia.etherscan.io/tx/0xb461d6750a1c2d47eb68e1ffcb2b577cf7869b56d54a4bd3ad5005b69f9842d9 |
 | Pipeline via the live deployment (keepersense.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
+| Pipeline transfer to the demo recipient wallet (0xc143…2957) | `0x89c3e7d6…8fabdd` | https://sepolia.etherscan.io/tx/0x89c3e7d670045dfc36be5a55e037cb7861456cd5199a8d19c72d33e04b8fabdd |
 
 ---
 
@@ -165,7 +166,7 @@ Hermes Agent
 | Execution with tx hash return + retry-on-failure loop | ✅ Real — verified live (tx `0xb461d675…f9842d9`) |
 | Audit trail retrieval (`status` + `logs`) | ✅ Real — verified live |
 | Unit tests (14) for scoring/schema/tx-extraction logic | ✅ Real |
-| Real Sepolia transactions | ✅ Real — see the live-execution table at the top (3 txs, all confirmed on-chain) |
+| Real Sepolia transactions | ✅ Real — see the live-execution table at the top (4 txs, all confirmed on-chain) |
 | Live demo deployment (keepersense.vercel.app) | ✅ Real — landing + pipeline + /api proxy all live, verified end-to-end (3rd tx executed through it) |
 | Onchain param resolution (reads chain data to fill inputs) | ⚠️ Planned |
 | Retry demo (failed tx → gas adjust → success) | ⚠️ Demo pending (retry loop is in the code) |
