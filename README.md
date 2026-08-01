@@ -19,7 +19,7 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 |---|---|---|
 | Direct transfer (0.001 ETH) | `0x8a9dc43e…b6768dd` | https://sepolia.etherscan.io/tx/0x8a9dc43e09d9023f7d61f5f17808f846e2fc9dec2c4f5740b81c112b2f6768dd |
 | Full Zenith pipeline (configure → deploy → execute → audit) | `0xb461d675…f9842d9` | https://sepolia.etherscan.io/tx/0xb461d6750a1c2d47eb68e1ffcb2b577cf7869b56d54a4bd3ad5005b69f9842d9 |
-| Pipeline via the live deployment (zenith.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
+| Pipeline via the live deployment (zenithagent.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
 | Pipeline transfer to the demo recipient wallet (0xc143…2957) | `0x89c3e7d6…8fabdd` | https://sepolia.etherscan.io/tx/0x89c3e7d670045dfc36be5a55e037cb7861456cd5199a8d19c72d33e04b8fabdd |
 | Retry demo: failed attempt (999 ETH) → adjusted → success | `0xccb87e52…c703d` | https://sepolia.etherscan.io/tx/0xccb87e52bdcfda6d5c8c0fadcd5fe6db875e9b08a625b0e01ecf75c134cc703d |
 | Direct org-workflow execution (source demo transfer) | `0xb942c4a8…97c7f` | https://sepolia.etherscan.io/tx/0xb942c4a8d9ef00209b2dbf4009e9330f898908d7db1b93cddffee121de297c7f |
@@ -169,7 +169,7 @@ Hermes Agent
 | Audit trail retrieval (`status` + `logs`) | ✅ Real — verified live |
 | Unit tests (14) for scoring/schema/tx-extraction logic | ✅ Real |
 | Real Sepolia transactions | ✅ Real — see the live-execution table at the top (6 txs, all confirmed on-chain) |
-| Live demo deployment (zenith.vercel.app) | ✅ Real — landing + pipeline + /api proxy all live, verified end-to-end (3rd tx executed through it) |
+| Live demo deployment (zenithagent.vercel.app) | ✅ Real — landing + pipeline + /api proxy all live, verified end-to-end (3rd tx executed through it) |
 | Onchain param resolution (reads chain data to fill inputs) | ✅ Real — ks_configure reads live chain state (eth_getBalance / eth_blockNumber) and caps transfer amounts by wallet balance |
 | Retry demo (failed tx → adjust → success) | ✅ Real — executed live: 999 ETH attempt failed (retry loop fired, 3 attempts), amount fixed → success tx `0xccb87e52…c703d` |
 | x402 / MPP payment integration | ✅ Code complete — `ks_pay` implements the x402 flow; activates when the agentic wallet is configured (x402/README.md) |
