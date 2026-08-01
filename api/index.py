@@ -1,55 +1,59 @@
 """
-Vercel serverless proxy for the KeeperSense MCP server.
+Vercel serverless entrypoint for the KeeperSense MCP server.
 
-The frontend calls /api -> Vercel rewrites to /api/proxy -> this module
-forwards the JSON-RPC request to the KeeperSense tool handlers.
+The frontend calls /api -> Vercel rewrites to /api/index -> this ASGI app
+dispatches the JSON-RPC request to the KeeperSense tool handlers.
 
 KH_API_KEY must be set in Vercel environment variables (production only).
 It is read server-side and never reaches the client bundle.
 """
-import asyncio
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from server import mcp_server  # noqa: E402  (loads TOOLS/HANDLERS, reads KH_API_KEY)
+try:
+    from server import mcp_server  # loads TOOLS/HANDLERS, reads KH_API_KEY
+except Exception:  # pragma: no cover - import guard for Vercel's export scan
+    mcp_server = None
+
+_CORS = [
+    (b"content-type", b"application/json"),
+    (b"access-control-allow-origin", b"*"),
+    (b"access-control-allow-methods", b"POST, OPTIONS"),
+    (b"access-control-allow-headers", b"content-type"),
+]
 
 
-def _cors_headers() -> dict:
-    return {
-        "content-type": "application/json",
-        "access-control-allow-origin": "*",
-        "access-control-allow-methods": "POST, OPTIONS",
-        "access-control-allow-headers": "content-type",
-    }
+async def app(scope, receive, send):
+    """ASGI app — Vercel routes api/index.py here."""
+    if scope["type"] != "http":
+        return
 
+    if scope.get("method") == "OPTIONS":
+        await send({"type": "http.response.start", "status": 204, "headers": _CORS})
+        await send({"type": "http.response.body", "body": b""})
+        return
 
-def handler(request):
-    """Vercel Python function entrypoint.
+    body = b""
+    more = True
+    while more:
+        msg = await receive()
+        body += msg.get("body", b"")
+        more = msg.get("more_body", False)
 
-    Supports both the request-object style (VercelRequest) and the legacy
-    event-dict style. Returns a dict Vercel serializes as the HTTP response.
-    """
-    if hasattr(request, "method"):  # VercelRequest style
-        method = (request.method or "POST").upper()
-        raw = request.body or b""
-        if isinstance(raw, str):
-            raw = raw.encode()
-    else:  # legacy event dict style
-        method = (request.get("httpMethod") or "POST").upper()
-        raw = request.get("body") or ""
-        if isinstance(raw, str):
-            raw = raw.encode()
+    if mcp_server is None:
+        payload = {"jsonrpc": "2.0", "id": None,
+                   "error": {"code": -32000, "message": "server import failed"}}
+    else:
+        try:
+            payload = json.loads(body) if body else {}
+            payload = await mcp_server.handle_mcp_request(payload)
+        except json.JSONDecodeError:
+            payload = {"jsonrpc": "2.0", "id": None,
+                       "error": {"code": -32700, "message": "Parse error"}}
 
-    if method == "OPTIONS":
-        return {"statusCode": 204, "headers": _cors_headers(), "body": ""}
-
-    try:
-        payload = json.loads(raw) if raw else {}
-    except json.JSONDecodeError:
-        payload = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
-
-    response = asyncio.run(mcp_server.handle_mcp_request(payload))
-    return {"statusCode": 200, "headers": _cors_headers(), "body": json.dumps(response)}
+    resp = json.dumps(payload).encode()
+    await send({"type": "http.response.start", "status": 200, "headers": _CORS})
+    await send({"type": "http.response.body", "body": resp})
