@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
 KH_API_KEY = os.environ.get("KH_API_KEY", "").strip()
-KH_BASE = os.environ.get("KEEPERHUB_BASE", "https://app.keeperhub.com/api")
+KH_BASE = os.environ.get("KEEPERHUB_BASE", "https://app.keeperhub.com")
 KH_TIMEOUT = float(os.environ.get("KEEPERHUB_TIMEOUT", "30"))
 KH_MAX_RETRIES = int(os.environ.get("KEEPERHUB_MAX_RETRIES", "2"))
 KH_POLL_SECONDS = float(os.environ.get("KEEPERHUB_POLL_SECONDS", "3"))
