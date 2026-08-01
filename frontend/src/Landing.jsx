@@ -276,9 +276,6 @@ export default function Landing() {
         </div>
         <div className="f-marquee">Keeper Sense Keeper Sense Keeper Sense Keeper Sense Keeper Sense Keeper Sense </div>
         <div className="container f-bottom">
-          <div className="f-status label">
-            <span className="pulse" /> System operational
-          </div>
           <div className="f-copy">© 2026 KeeperSense · KeeperHub Agents Onchain Hackathon</div>
         </div>
       </footer>
