@@ -1,11 +1,9 @@
 {
+  "framework": "vite",
   "buildCommand": "bash scripts/build.sh",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api", "destination": "/api/index" },
     { "source": "/api/(.*)", "destination": "/api/index" }
-  ],
-  "functions": {
-    "api/index.py": { "maxDuration": 60, "memory": 512 }
-  }
+  ]
 }
