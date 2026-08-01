@@ -22,6 +22,7 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 | Pipeline via the live deployment (keepersense.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
 | Pipeline transfer to the demo recipient wallet (0xc143…2957) | `0x89c3e7d6…8fabdd` | https://sepolia.etherscan.io/tx/0x89c3e7d670045dfc36be5a55e037cb7861456cd5199a8d19c72d33e04b8fabdd |
 | Retry demo: failed attempt (999 ETH) → adjusted → success | `0xccb87e52…c703d` | https://sepolia.etherscan.io/tx/0xccb87e52bdcfda6d5c8c0fadcd5fe6db875e9b08a625b0e01ecf75c134cc703d |
+| Direct org-workflow execution (source demo transfer) | `0xb942c4a8…97c7f` | https://sepolia.etherscan.io/tx/0xb942c4a8d9ef00209b2dbf4009e9330f898908d7db1b93cddffee121de297c7f |
 
 ---
 
@@ -173,6 +174,7 @@ Hermes Agent
 | Retry demo (failed tx → adjust → success) | ✅ Real — executed live: 999 ETH attempt failed (retry loop fired, 3 attempts), amount fixed → success tx `0xccb87e52…c703d` |
 | x402 / MPP payment integration | ✅ Code complete — `ks_pay` implements the x402 flow; activates when the agentic wallet is configured (x402/README.md) |
 | ERC-8004 agent identity registration | ✅ Implemented — `ks_identity` (config-gated); KeeperHub exposes no identity API, so registration runs via contract-call when `KEEPERHUB_IDENTITY_REGISTRY` is set |
+| Free-tier only (no paid-plan errors) | ✅ Real — discovery returns org workflows only by default (marketplace workflows 402/404 on the free plan); `paid_plan_required` errors are structured and explain why |
 | Mainnet Ethereum gas sponsorship demo | ⚠️ Pending |
 
 ---
