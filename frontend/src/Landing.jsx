@@ -151,9 +151,6 @@ export default function Landing() {
         <div className="container">
           <div className="h-grid">
             <div className="h-left">
-              <div className="h-status label">
-                <span className="pulse" /> System operational · Sepolia live
-              </div>
               <div className="h-title">
                 <div className="stroke-text">Agents</div>
                 <div className="serif-i">can reason.</div>
@@ -168,38 +165,11 @@ export default function Landing() {
                   intent → tx hash
                 </span>
               </div>
-              <div className="h-readouts">
-                <div className="mono">MCP TOOLS <b>05</b></div>
-                <div className="mono">PIPELINE <b>01</b></div>
-                <div className="mono">LATENCY <b>~12s</b></div>
-                <div className="mono">CHAIN <b>SEPOLIA</b></div>
-              </div>
             </div>
 
             <div className="h-right">
               <div className="h-frame">
                 <img src="/images/hero-pipeline.svg" alt="KeeperSense pipeline: intent to execution through KeeperHub" />
-                <div className="h-glass">
-                  <div className="g-head">
-                    <span className="label" style={{ color: 'var(--zinc-500)' }}>System status</span>
-                    <span className="mono" style={{ color: 'var(--zinc-400)' }}>ks-01</span>
-                  </div>
-                  <div className="g-bar"><i style={{ animationDelay: '0.1s' }} /></div>
-                  <div className="g-bar accent"><i style={{ animationDelay: '0.35s', width: '72%' }} /></div>
-                  <div className="g-bar"><i style={{ animationDelay: '0.6s', width: '92%' }} /></div>
-                  <div className="g-row">
-                    <span className="mono">GAS ESTIMATION</span>
-                    <span className="mono" style={{ color: 'var(--fg)' }}>ACTIVE</span>
-                  </div>
-                  <div className="g-row">
-                    <span className="mono">PRIVATE ROUTING</span>
-                    <span className="mono" style={{ color: 'var(--fg)' }}>ON</span>
-                  </div>
-                  <div className="g-row">
-                    <span className="mono">AUDIT TRAIL</span>
-                    <span className="mono" style={{ color: 'var(--fg)' }}>WRITING</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
