@@ -7,3 +7,4 @@ dist/
 .DS_Store
 *.log
 .ssr-bundle.cjs
+.vercel/
