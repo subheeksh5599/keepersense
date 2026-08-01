@@ -46,13 +46,28 @@ async function callMCP(tool, args) {
   return content ? JSON.parse(content) : data.result;
 }
 
-function LogLine({ label, data, color }) {
+function LogLine({ label, summary, raw, color }) {
+  const [showRaw, setShowRaw] = useState(false);
   return (
     <div className="pl-log" style={{ borderLeftColor: color }}>
-      <span className="pl-log-label" style={{ color }}>{label}</span>
-      <pre className="pl-log-body">
-        {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
-      </pre>
+      <div className="pl-log-head">
+        <span className="label" style={{ color }}>{label}</span>
+        {raw !== undefined && raw !== null && (
+          <button
+            className="pl-log-toggle mono"
+            onClick={() => setShowRaw(v => !v)}
+            style={{ color }}
+          >
+            {showRaw ? 'hide json' : 'show json'}
+          </button>
+        )}
+      </div>
+      <pre className="pl-log-body">{summary}</pre>
+      {showRaw && (
+        <pre className="pl-log-raw">
+          {typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
@@ -75,8 +90,8 @@ export default function PipelineView() {
     }
   }, [txHash]);
 
-  const addLog = useCallback((label, data, color) => {
-    setLogs(prev => [...prev, { label, data, color, ts: Date.now() }]);
+  const addLog = useCallback((label, summary, raw, color) => {
+    setLogs(prev => [...prev, { label, summary, raw, color, ts: Date.now() }]);
   }, []);
 
   const discover = useCallback(async () => {
@@ -92,10 +107,17 @@ export default function PipelineView() {
 
     try {
       // Step 1: Discover
-      addLog('discover', `Searching workflows for: "${intent}"`, STEP_COLORS.discover);
+      addLog('discover', `Searching workflows for: "${intent}"`, null, STEP_COLORS.discover);
       const discovered = await callMCP('ks_discover', { intent });
       if (discovered.error) throw new Error(discovered.error);
-      addLog('discover result', discovered, STEP_COLORS.discover);
+      const top = discovered.top_match || (discovered.matches || [])[0];
+      addLog(
+        'discover result',
+        `Found ${(discovered.matches || []).length} matching workflows` +
+          (top ? ` — top: "${top.name}" (score ${top.score}, ${top.chain})` : ''),
+        discovered,
+        STEP_COLORS.discover
+      );
 
       if (!discovered.matches || discovered.matches.length === 0) {
         throw new Error('No matching workflow found. Try a different intent.');
@@ -120,31 +142,52 @@ export default function PipelineView() {
 
     try {
       // Step 2: Configure
-      addLog('configure', `Configuring "${match.name}" (score: ${match.score})`, STEP_COLORS.configure);
+      addLog('configure', `Configuring "${match.name}" (score: ${match.score})`, null, STEP_COLORS.configure);
       const configured = await callMCP('ks_configure', { workflow_id: match.id });
       if (configured.error) throw new Error(configured.error);
-      addLog('configure result', configured, STEP_COLORS.configure);
+      const missing = configured.missing_params || [];
+      addLog(
+        'configure result',
+        `"${configured.workflow_name || match.name}" configured — ` +
+          (missing.length === 0
+            ? 'all inputs resolved, ready to deploy'
+            : `missing inputs: ${missing.join(', ')}`),
+        configured,
+        STEP_COLORS.configure
+      );
 
       const deployParams = configured.configured_params || {};
 
       // Step 3: Deploy (clone the matched workflow)
-      addLog('deploy', 'Deploying workflow to KeeperHub...', STEP_COLORS.deploy);
+      addLog('deploy', 'Deploying workflow to KeeperHub...', null, STEP_COLORS.deploy);
       const deployed = await callMCP('ks_deploy', {
         source_workflow_id: match.id,
         chain: CHAIN,
       });
       if (deployed.error) throw new Error(deployed.error);
-      addLog('deploy result', deployed, STEP_COLORS.deploy);
+      addLog(
+        'deploy result',
+        `Deployed "${deployed.workflow_name || match.name}" — id ${deployed.workflow_id} · ${deployed.chain || CHAIN}`,
+        deployed,
+        STEP_COLORS.deploy
+      );
 
       // Step 4: Execute
-      addLog('execute', `Executing workflow ${deployed.workflow_id}...`, STEP_COLORS.execute);
+      addLog('execute', `Executing workflow ${deployed.workflow_id}...`, null, STEP_COLORS.execute);
       const executed = await callMCP('ks_execute', {
         workflow_id: deployed.workflow_id,
         input: deployParams,
         chain: CHAIN,
       });
       if (executed.error) throw new Error(executed.error);
-      addLog('execute result', executed, STEP_COLORS.execute);
+      addLog(
+        'execute result',
+        `Status: ${executed.status}` +
+          (executed.tx_hash ? ` — tx ${executed.tx_hash.slice(0, 18)}…` : '') +
+          (executed.retries ? ` · retries: ${executed.retries}` : ''),
+        executed,
+        STEP_COLORS.execute
+      );
 
       if (executed.tx_hash) {
         setTxHash(executed.tx_hash);
@@ -156,18 +199,24 @@ export default function PipelineView() {
 
       // Step 5: Status / Audit
       if (executed.execution_id || executed.run_id) {
-        addLog('audit', 'Polling execution status...', STEP_COLORS.audit);
+        addLog('audit', 'Polling execution status...', null, STEP_COLORS.audit);
         const status = await callMCP('ks_status', { execution_id: executed.execution_id || executed.run_id });
         if (!status.error) {
-          addLog('audit trail', status, STEP_COLORS.audit);
+          addLog(
+            'audit trail',
+            `Audit trail retrieved — ${status.status || 'n/a'}` +
+              (status.tx_hash ? ` · tx ${status.tx_hash.slice(0, 18)}…` : ''),
+            status,
+            STEP_COLORS.audit
+          );
         }
       }
 
-      addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', STEP_COLORS.complete);
+      addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', null, STEP_COLORS.complete);
 
     } catch (e) {
       setError(e.message);
-      addLog('error', e.message, STEP_COLORS.error);
+      addLog('error', e.message, null, STEP_COLORS.error);
     } finally {
       setRunning(false);
       setPhase('done');
