@@ -46,17 +46,21 @@ export default function PipelineView() {
   const [logs, setLogs] = useState([]);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
+  const [matches, setMatches] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   const addLog = useCallback((label, data, color) => {
     setLogs(prev => [...prev, { label, data, color, ts: Date.now() }]);
   }, []);
 
-  const run = useCallback(async () => {
+  const discover = useCallback(async () => {
     if (!intent.trim() || running) return;
     setRunning(true);
     setLogs([]);
     setTxHash(null);
     setError(null);
+    setMatches(null);
+    setSelected(null);
 
     try {
       // Step 1: Discover
@@ -65,12 +69,28 @@ export default function PipelineView() {
       if (discovered.error) throw new Error(discovered.error);
       addLog('discover result', discovered, STEP_COLORS.discover);
 
-      const top = discovered.top_match;
-      if (!top) throw new Error('No matching workflow found. Try a different intent.');
+      if (!discovered.matches || discovered.matches.length === 0) {
+        throw new Error('No matching workflow found. Try a different intent.');
+      }
+      setMatches(discovered.matches);
+      setSelected(discovered.top_match || discovered.matches[0]);
+    } catch (e) {
+      setError(e.message);
+      addLog('error', e.message, STEP_COLORS.error);
+    } finally {
+      setRunning(false);
+    }
+  }, [intent, running, addLog]);
 
+  const executeSelected = useCallback(async (match) => {
+    if (running || !match) return;
+    setRunning(true);
+    setError(null);
+
+    try {
       // Step 2: Configure
-      addLog('configure', `Configuring "${top.name}" (score: ${top.score})`, STEP_COLORS.configure);
-      const configured = await callMCP('ks_configure', { workflow_id: top.id });
+      addLog('configure', `Configuring "${match.name}" (score: ${match.score})`, STEP_COLORS.configure);
+      const configured = await callMCP('ks_configure', { workflow_id: match.id });
       if (configured.error) throw new Error(configured.error);
       addLog('configure result', configured, STEP_COLORS.configure);
 
@@ -79,7 +99,7 @@ export default function PipelineView() {
       // Step 3: Deploy (clone the matched workflow)
       addLog('deploy', 'Deploying workflow to KeeperHub...', STEP_COLORS.deploy);
       const deployed = await callMCP('ks_deploy', {
-        source_workflow_id: top.id,
+        source_workflow_id: match.id,
         chain: 'sepolia',
       });
       if (deployed.error) throw new Error(deployed.error);
@@ -116,7 +136,7 @@ export default function PipelineView() {
     } finally {
       setRunning(false);
     }
-  }, [intent, running, addLog]);
+  }, [running, addLog]);
 
   return (
     <div className="pipeline">
@@ -159,22 +179,45 @@ export default function PipelineView() {
             <div className="pl-row">
               <input
                 className="pl-input"
-                placeholder='What do you want to do onchain? e.g. "protect my vault from liquidation"'
+                placeholder='What do you want to do onchain? e.g. "transfer 0.001 eth to my wallet"'
                 value={intent}
                 onChange={e => setIntent(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && run()}
+                onKeyDown={e => e.key === 'Enter' && discover()}
                 disabled={running}
               />
               <button
                 className="btn-start"
-                onClick={run}
+                onClick={discover}
                 disabled={running || !intent.trim()}
                 style={{ opacity: running ? 0.5 : 1, cursor: running ? 'wait' : 'pointer' }}
               >
-                {running ? 'Running...' : 'Execute'}
+                {running ? 'Running...' : matches ? 'Search again' : 'Execute'}
                 {!running && <span className="arr">↗</span>}
               </button>
             </div>
+
+            {matches && !running && (
+              <div className="pl-pick">
+                <div className="pl-pick-head">
+                  <span className="label" style={{ color: 'var(--zinc-500)' }}>
+                    Select workflow — {matches.length} matches
+                  </span>
+                  <span className="mono" style={{ color: 'var(--zinc-400)' }}>click to run</span>
+                </div>
+                {matches.map((m) => (
+                  <button
+                    key={m.id}
+                    className={`pl-match${selected && selected.id === m.id ? ' sel' : ''}`}
+                    onClick={() => executeSelected(m)}
+                  >
+                    <span className="pl-match-score mono">{m.score.toFixed(1)}</span>
+                    <span className="pl-match-name">{m.name}</span>
+                    <span className="pl-match-chain mono">{m.chain}</span>
+                    <span className="pl-match-go">Execute ↗</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {error && (
               <div className="pl-error">

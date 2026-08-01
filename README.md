@@ -13,6 +13,13 @@ KeeperSense is the intelligence layer that lets any AI agent execute onchain wit
 
 Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 
+**Live onchain — executed through KeeperHub (Sepolia):**
+
+| Tx | Hash | Explorer |
+|---|---|---|
+| Direct transfer (0.001 ETH) | `0x8a9dc43e…b6768dd` | https://sepolia.etherscan.io/tx/0x8a9dc43e09d9023f7d61f5f17808f846e2fc9dec2c4f5740b81c112b2f6768dd |
+| Full KeeperSense pipeline (configure → deploy → execute → audit) | `0xb461d675…f9842d9` | https://sepolia.etherscan.io/tx/0xb461d6750a1c2d47eb68e1ffcb2b577cf7869b56d54a4bd3ad5005b69f9842d9 |
+
 ---
 
 ## Table of contents
@@ -153,11 +160,11 @@ Hermes Agent
 | MCP server with 5 tools (discover/configure/deploy/execute/status) | ✅ Real |
 | Workflow discovery with keyword scoring | ✅ Real (against `/api/workflows/public`) |
 | Parameter auto-configuration from the workflow `inputSchema` (defaults + required flags) | ✅ Real |
-| Workflow deploy via clone (`/duplicate`) | ✅ Code complete — awaiting live verification |
-| Execution with tx hash return + retry-on-failure loop | ✅ Code complete — awaiting live verification |
-| Audit trail retrieval (`status` + `logs`) | ✅ Code complete — awaiting live verification |
+| Workflow deploy via clone (`/duplicate`) | ✅ Real — verified live (deployed clone `8tb5p6…cufi`) |
+| Execution with tx hash return + retry-on-failure loop | ✅ Real — verified live (tx `0xb461d675…f9842d9`) |
+| Audit trail retrieval (`status` + `logs`) | ✅ Real — verified live |
 | Unit tests (14) for scoring/schema/tx-extraction logic | ✅ Real |
-| Real Sepolia transactions | ⚠️ Pending — needs `KH_API_KEY` and one live run |
+| Real Sepolia transactions | ✅ Real — see the live-execution table at the top (2 txs, both confirmed on-chain) |
 | Live demo deployment (keepersense.vercel.app) | ⚠️ Pending — vercel.json + serverless proxy are in the repo |
 | Onchain param resolution (reads chain data to fill inputs) | ⚠️ Planned |
 | Retry demo (failed tx → gas adjust → success) | ⚠️ Demo pending (retry loop is in the code) |

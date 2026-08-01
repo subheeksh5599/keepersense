@@ -112,7 +112,7 @@ def score_template(template: dict, intent: str) -> float:
     return round(score, 2)
 
 
-def rank_workflows(items: list, intent: str, limit: int = 5) -> list:
+def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
     """Normalize raw API items and rank them against the intent."""
     scored = []
     for t in items:
@@ -122,12 +122,14 @@ def rank_workflows(items: list, intent: str, limit: int = 5) -> list:
         if not wid:
             continue
         s = score_template(t, intent)
+        if t.get("_org"):  # boost the org's own workflows (they execute out of the box)
+            s += 1.0
         scored.append({
             "workflow_id": wid,
             "id": wid,  # alias kept for frontend compatibility
             "name": workflow_name_of(t),
             "description": _walk(t, "description") or "",
-            "score": s,
+            "score": round(s, 2),
             "chain": workflow_chain_of(t),
         })
     scored.sort(key=lambda x: x["score"], reverse=True)
@@ -233,24 +235,35 @@ async def kh_request(method: str, path: str, **kwargs) -> tuple[int, Any]:
 # ── MCP Tool implementations ───────────────────────────────────────
 
 async def ks_discover(intent: str) -> dict:
-    """Search KeeperHub's marketplace/org workflows and return best matches."""
+    """Search KeeperHub's marketplace + org workflows and return best matches."""
     if not KH_API_KEY:
         return missing_key_error()
 
     items: list = []
+    seen: set = set()
     for path in ("/api/workflows/public", "/api/workflows"):
-        status, data = await kh_request("GET", path, params={"limit": 50})
+        status, data = await kh_request("GET", path, params={"limit": 100})
         if status == 200:
-            items = data if isinstance(data, list) else _walk(data, "workflows", "data", "items") or []
-            if isinstance(items, dict):
-                items = list(items.values())
-            break
-        if status == 401 or status == 403:
+            batch = data if isinstance(data, list) else _walk(data, "workflows", "data", "items") or []
+            if isinstance(batch, dict):
+                batch = list(batch.values())
+            is_org = path == "/api/workflows"
+            for item in batch:
+                if not isinstance(item, dict):
+                    continue
+                wid = workflow_id_of(item)
+                if wid and wid not in seen:
+                    seen.add(wid)
+                    if is_org:
+                        item["_org"] = True
+                    items.append(item)
+        elif status in (401, 403):
             return parse_api_error(data, f"KeeperHub auth failed ({status})")
-    else:
+
+    if not items:
         return parse_api_error(data, "KeeperHub workflow discovery failed")
 
-    matches = rank_workflows([i for i in items if isinstance(i, dict)], intent)
+    matches = rank_workflows(items, intent)
     return {
         "intent": intent,
         "matches": matches,
