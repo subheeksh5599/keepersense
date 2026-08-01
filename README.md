@@ -1,6 +1,6 @@
 <div align="center">
 
-[![MCP Server](https://img.shields.io/badge/mcp-5_tools-00ff4f?style=flat)](https://github.com/subheeksh5599/zenith)
+[![MCP Server](https://img.shields.io/badge/mcp-7_tools-00ff4f?style=flat)](https://github.com/subheeksh5599/keepersense)
 [![License](https://img.shields.io/badge/license-MIT-00ff4f?style=flat)](LICENSE)
 [![KeeperHub](https://img.shields.io/badge/KeeperHub-execution-14151a?style=flat)](https://keeperhub.com)
 [![Hermes Agent](https://img.shields.io/badge/Hermes-agent-14151a?style=flat)](https://github.com/NousResearch/hermes-agent)
@@ -9,7 +9,7 @@
 
 </div>
 
-Zenith is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and Zenith discovers the right workflow, auto-configures every parameter from its input schema, deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder.
+KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from its input schema, deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder.
 
 Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 
@@ -18,8 +18,8 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 | Tx | Hash | Explorer |
 |---|---|---|
 | Direct transfer (0.001 ETH) | `0x8a9dc43e…b6768dd` | https://sepolia.etherscan.io/tx/0x8a9dc43e09d9023f7d61f5f17808f846e2fc9dec2c4f5740b81c112b2f6768dd |
-| Full Zenith pipeline (configure → deploy → execute → audit) | `0xb461d675…f9842d9` | https://sepolia.etherscan.io/tx/0xb461d6750a1c2d47eb68e1ffcb2b577cf7869b56d54a4bd3ad5005b69f9842d9 |
-| Pipeline via the live deployment (zenithagent.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
+| Full KeeperSense pipeline (configure → deploy → execute → audit) | `0xb461d675…f9842d9` | https://sepolia.etherscan.io/tx/0xb461d6750a1c2d47eb68e1ffcb2b577cf7869b56d54a4bd3ad5005b69f9842d9 |
+| Pipeline via the live deployment (keepersense.vercel.app → /api) | `0xadcc65a1…4005ee` | https://sepolia.etherscan.io/tx/0xadcc65a125de3a0a1a6a379d093db8f9ed2969f2845dfe683f581016934005ee |
 | Pipeline transfer to the demo recipient wallet (0xc143…2957) | `0x89c3e7d6…8fabdd` | https://sepolia.etherscan.io/tx/0x89c3e7d670045dfc36be5a55e037cb7861456cd5199a8d19c72d33e04b8fabdd |
 | Retry demo: failed attempt (999 ETH) → adjusted → success | `0xccb87e52…c703d` | https://sepolia.etherscan.io/tx/0xccb87e52bdcfda6d5c8c0fadcd5fe6db875e9b08a625b0e01ecf75c134cc703d |
 | Direct org-workflow execution (source demo transfer) | `0xb942c4a8…97c7f` | https://sepolia.etherscan.io/tx/0xb942c4a8d9ef00209b2dbf4009e9330f898908d7db1b93cddffee121de297c7f |
@@ -29,8 +29,8 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 ## Table of contents
 
 - [See it in one command](#see-it-in-one-command)
-- [The problem Zenith solves](#the-problem-zenith-solves)
-- [How Zenith works](#how-zenith-works)
+- [The problem KeeperSense solves](#the-problem-keepersense-solves)
+- [How KeeperSense works](#how-keepersense-works)
 - [Architecture](#architecture)
 - [What's real vs pending](#whats-real-vs-pending)
 - [Run it locally](#run-it-locally)
@@ -64,33 +64,33 @@ Until `KH_API_KEY` is set, the tools return a structured `kh_api_key_not_set` er
 
 ---
 
-## The problem Zenith solves
+## The problem KeeperSense solves
 
 - **KeeperHub exposes 20+ MCP tools** but no intelligence layer. Agents see tools, not what to do with them.
 - **Workflows exist but can't be discovered autonomously.** Every integration requires a human to browse, evaluate, and configure.
 - **Workflow inputs need context.** Recipient addresses, amounts, thresholds, chain selection — agents don't know these without reading the schema and the chain.
-- **No bridge between intent and execution.** KeeperHub's blog identified this gap in June 2026: "agents need a read layer and an execute layer." Zenith is the bridge.
-- **Every builder reinvents the same pipeline.** Observe → decide → configure → execute → audit. Zenith makes it a single call.
+- **No bridge between intent and execution.** KeeperHub's blog identified this gap in June 2026: "agents need a read layer and an execute layer." KeeperSense is the bridge.
+- **Every builder reinvents the same pipeline.** Observe → decide → configure → execute → audit. KeeperSense makes it a single call.
 
 ---
 
-## How Zenith works
+## How KeeperSense works
 
 **1· Agent expresses intent**
 ```
 "protect my vault from liquidation on Aave V3"
 ```
 
-**2· Zenith discovers matching workflows**
+**2· KeeperSense discovers matching workflows**
 Searches KeeperHub's workflow API (`GET /api/workflows/public`), scores each against the intent using keyword and semantic matching. Returns ranked results with confidence scores.
 
-**3· Zenith configures parameters**
+**3· KeeperSense configures parameters**
 Fetches the workflow's `inputSchema` and auto-fills defaults, flagging any required parameters the agent must supply.
 
-**4· Zenith deploys the workflow**
+**4· KeeperSense deploys the workflow**
 Clones the matched workflow (`POST /api/workflows/{id}/duplicate`), returning a new workflow ID ready for execution.
 
-**5· Zenith executes and audits**
+**5· KeeperSense executes and audits**
 Triggers execution (`POST /api/workflows/{id}/execute`), polls until terminal state, retries on failure, then retrieves the full audit trail (`status` + `logs`): trigger → simulate → submit → gas → outcome → timestamp. Returns everything the agent needs to prove the execution happened.
 
 ```python
@@ -111,7 +111,7 @@ Hermes Agent
     │  natural language intent
     ▼
 ┌──────────────────────────────┐
-│     Zenith MCP Server   │  ← we built this
+│     KeeperSense MCP Server   │  ← we built this
 │                              │
 │  ks_discover()  ──────────┐  │
 │  ks_configure() ───┐      │  │  workflow search + scoring
@@ -150,7 +150,7 @@ Hermes Agent
 | Component | Technology | Responsibility |
 |---|---|---|
 | Agent runtime | Hermes Agent | Natural language reasoning, intent formulation |
-| Zenith MCP | Python + httpx + uvicorn | Intent-to-workflow bridge: discover, configure, deploy, execute, audit |
+| KeeperSense MCP | Python + httpx + uvicorn | Intent-to-workflow bridge: discover, configure, deploy, execute, audit |
 | KeeperHub API | `app.keeperhub.com/api` (Bearer `kh_` key) | Workflow registry, execution engine, audit logs |
 | Frontend | Vite + React 18 | Single-page pipeline visualizer |
 | Chains | Sepolia testnet | Transaction execution (mainnet available via gas sponsorship) |
@@ -168,8 +168,8 @@ Hermes Agent
 | Execution with tx hash return + retry-on-failure loop | ✅ Real — verified live (tx `0xb461d675…f9842d9`) |
 | Audit trail retrieval (`status` + `logs`) | ✅ Real — verified live |
 | Unit tests (14) for scoring/schema/tx-extraction logic | ✅ Real |
-| Real Sepolia transactions | ✅ Real — see the live-execution table at the top (6 txs, all confirmed on-chain) |
-| Live demo deployment (zenithagent.vercel.app) | ✅ Real — landing + pipeline + /api proxy all live, verified end-to-end (3rd tx executed through it) |
+| Real Sepolia transactions | ✅ Real — see the live-execution table at the top (5 txs, all confirmed on-chain) |
+| Live demo deployment (keepersense.vercel.app) | ✅ Real — landing + pipeline + /api proxy all live, verified end-to-end (3rd tx executed through it) |
 | Onchain param resolution (reads chain data to fill inputs) | ✅ Real — ks_configure reads live chain state (eth_getBalance / eth_blockNumber) and caps transfer amounts by wallet balance |
 | Retry demo (failed tx → adjust → success) | ✅ Real — executed live: 999 ETH attempt failed (retry loop fired, 3 attempts), amount fixed → success tx `0xccb87e52…c703d` |
 | x402 / MPP payment integration | ✅ Code complete — `ks_pay` implements the x402 flow; activates when the agentic wallet is configured (x402/README.md) |
@@ -183,8 +183,8 @@ Hermes Agent
 
 ```bash
 # Clone
-git clone https://github.com/subheeksh5599/zenith
-cd zenith
+git clone https://github.com/subheeksh5599/keepersense
+cd keepersense
 
 # Backend
 cd server
@@ -240,7 +240,7 @@ VITE_CHAIN=sepolia             # chain used by the pipeline UI (default: sepolia
 ## Project layout
 
 ```
-zenith/
+keepersense/
 ├── server/
 │   ├── mcp_server.py          # MCP HTTP server with 5 tools (real KeeperHub API)
 │   ├── test_scoring.py        # unit tests for scoring/schema/tx logic

@@ -279,10 +279,10 @@ export default function PipelineView() {
             <a href="#tools" onClick={() => { window.location.hash = '#/'; }}>Tools</a>
           </nav>
           <div className="h-logo">
-            <span className="serif-i">Zen</span>
-            <span style={{ fontWeight: 900 }}>ITH</span>
+            <span className="serif-i">Keeper</span>
+            <span style={{ fontWeight: 900 }}>SENSE</span>
           </div>
-          <a className="h-cta" href="https://github.com/subheeksh5599/zenith" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          <a className="h-cta" href="https://github.com/subheeksh5599/keepersense" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
         </div>
       </header>
 
@@ -389,7 +389,7 @@ export default function PipelineView() {
 
           <div className="pl-foot">
             <span className="mono">KEEPERHUB API · app.keeperhub.com/api</span>
-            <span className="mono">7 TOOLS · 1 PIPELINE · AUDIT TRAIL</span>
+            <span className="mono">5 TOOLS · 1 PIPELINE · AUDIT TRAIL</span>
           </div>
         </div>
       </main>
