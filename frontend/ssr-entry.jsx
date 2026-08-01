@@ -14,7 +14,7 @@ export function runChecks() {
     ['5 tool rows', (landingHtml.match(/proj-row/g) || []).length >= 5],
     ['marquee', landingHtml.includes('mq-track')],
     ['journal', (landingHtml.match(/j-item/g) || []).length >= 5],
-    ['footer link', landingHtml.includes('github.com/subheeksh5599/keepersense')],
+    ['footer link', landingHtml.includes('github.com/subheeksh5599/zenith')],
     ['pipeline links', landingHtml.includes('#/app')],
   ];
   for (const [name, ok] of checks) out.push(`${ok ? 'PASS' : 'FAIL'} ${name}`);
