@@ -2,6 +2,23 @@ import React, { useState, useCallback } from 'react';
 
 const MCP_URL = '/api';
 
+// Chain is config, not hardcoded: override with VITE_CHAIN at build time
+// (see .env.example). The server resolves the explorer URL per chain.
+// Guarded access so the module also works outside Vite's bundler (SSR/tests).
+const CHAIN = (
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CHAIN) ||
+  'sepolia'
+).toLowerCase();
+
+const EXPLORERS = {
+  ethereum: 'https://etherscan.io/tx/',
+  sepolia: 'https://sepolia.etherscan.io/tx/',
+  base: 'https://basescan.org/tx/',
+  'base-sepolia': 'https://sepolia.basescan.org/tx/',
+  arbitrum: 'https://arbiscan.io/tx/',
+  polygon: 'https://polygonscan.com/tx/',
+};
+
 const STEP_COLORS = {
   discover: '#0066FF',
   configure: '#D97706',
@@ -45,6 +62,7 @@ export default function PipelineView() {
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [txHash, setTxHash] = useState(null);
+  const [txUrl, setTxUrl] = useState(null);
   const [error, setError] = useState(null);
   const [matches, setMatches] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -58,6 +76,7 @@ export default function PipelineView() {
     setRunning(true);
     setLogs([]);
     setTxHash(null);
+    setTxUrl(null);
     setError(null);
     setMatches(null);
     setSelected(null);
@@ -100,7 +119,7 @@ export default function PipelineView() {
       addLog('deploy', 'Deploying workflow to KeeperHub...', STEP_COLORS.deploy);
       const deployed = await callMCP('ks_deploy', {
         source_workflow_id: match.id,
-        chain: 'sepolia',
+        chain: CHAIN,
       });
       if (deployed.error) throw new Error(deployed.error);
       addLog('deploy result', deployed, STEP_COLORS.deploy);
@@ -110,13 +129,17 @@ export default function PipelineView() {
       const executed = await callMCP('ks_execute', {
         workflow_id: deployed.workflow_id,
         input: deployParams,
-        chain: 'sepolia',
+        chain: CHAIN,
       });
       if (executed.error) throw new Error(executed.error);
       addLog('execute result', executed, STEP_COLORS.execute);
 
       if (executed.tx_hash) {
         setTxHash(executed.tx_hash);
+        setTxUrl(
+          executed.explorer_url ||
+          (EXPLORERS[CHAIN] || EXPLORERS.ethereum) + executed.tx_hash
+        );
       }
 
       // Step 5: Status / Audit
@@ -166,7 +189,7 @@ export default function PipelineView() {
       <main className="pl-main">
         <div className="container">
           <div className="pl-head">
-            <div className="label" style={{ color: 'var(--zinc-500)' }}>Pipeline · Sepolia</div>
+            <div className="label" style={{ color: 'var(--zinc-500)' }}>Pipeline · {CHAIN}</div>
             <h1 className="pl-title">
               Intent <span className="serif-i">to</span> execution
             </h1>
@@ -229,7 +252,7 @@ export default function PipelineView() {
             {txHash && (
               <div className="pl-success">
                 <span className="label" style={{ color: 'var(--zinc-500)' }}>Tx</span>
-                <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener">
+                <a href={txUrl} target="_blank" rel="noopener">
                   {txHash}
                 </a>
                 <span className="pl-badge">Onchain</span>

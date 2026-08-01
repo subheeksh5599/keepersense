@@ -222,11 +222,14 @@ KH_API_KEY=kh_...              # KeeperHub organisation API key
 
 # Optional
 PORT=8765                      # MCP server port (default: 8765)
-KEEPERHUB_BASE=https://app.keeperhub.com/api   # API base (default: same)
+KEEPERHUB_BASE=https://app.keeperhub.com   # API base (default: same)
 KEEPERHUB_CHAIN=sepolia        # default chain for explorer links
 KEEPERHUB_MAX_RETRIES=2        # retries on failed executions
 KEEPERHUB_POLL_SECONDS=3       # execution poll interval
 KEEPERHUB_POLL_LIMIT=20        # max poll iterations (~60s)
+
+# Frontend (frontend/.env.local, see .env.example)
+VITE_CHAIN=sepolia             # chain used by the pipeline UI (default: sepolia)
 ```
 
 ---
