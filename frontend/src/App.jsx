@@ -60,16 +60,16 @@ export default function App() {
 
       // Step 2: Configure
       addLog('configure', `Configuring "${top.name}" (score: ${top.score})`, '#f59e0b');
-      const configured = await callMCP('ks_configure', { template_id: top.id });
+      const configured = await callMCP('ks_configure', { workflow_id: top.id });
       if (configured.error) throw new Error(configured.error);
       addLog('configure result', configured, '#f59e0b');
 
-      // Step 3: Deploy
-      addLog('deploy', 'Deploying workflow to KeeperHub...', '#a78bfa');
       const deployParams = configured.configured_params || {};
+
+      // Step 3: Deploy (clone the matched workflow)
+      addLog('deploy', 'Deploying workflow to KeeperHub...', '#a78bfa');
       const deployed = await callMCP('ks_deploy', {
-        template_id: top.id,
-        params: deployParams,
+        source_workflow_id: top.id,
         chain: 'sepolia',
       });
       if (deployed.error) throw new Error(deployed.error);
@@ -77,7 +77,11 @@ export default function App() {
 
       // Step 4: Execute
       addLog('execute', `Executing workflow ${deployed.workflow_id}...`, '#f472b6');
-      const executed = await callMCP('ks_execute', { workflow_id: deployed.workflow_id });
+      const executed = await callMCP('ks_execute', {
+        workflow_id: deployed.workflow_id,
+        input: deployParams,
+        chain: 'sepolia',
+      });
       if (executed.error) throw new Error(executed.error);
       addLog('execute result', executed, '#f472b6');
 
@@ -88,7 +92,7 @@ export default function App() {
       // Step 5: Status / Audit
       if (executed.execution_id || executed.run_id) {
         addLog('audit', 'Polling execution status...', '#4ade80');
-        const status = await callMCP('ks_status', { run_id: executed.execution_id || executed.run_id });
+        const status = await callMCP('ks_status', { execution_id: executed.execution_id || executed.run_id });
         if (!status.error) {
           addLog('audit trail', status, '#4ade80');
         }
