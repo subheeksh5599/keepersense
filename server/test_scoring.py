@@ -16,6 +16,8 @@ from mcp_server import (  # noqa: E402
     workflow_executes_onchain,
     _is_clone_name,
     explorer_url_for,
+    parse_balance_hex,
+    compute_capped_amount,
 )
 
 
@@ -158,6 +160,33 @@ def test_action_intent_boost_ranks_executors_first():
     out = rank_workflows(items, "transfer 0.001 eth")
     assert out[0]["workflow_id"] == "wf_xfer"
     assert out[0]["chain"] == "sepolia"
+
+
+# ── onchain param resolution ───────────────────────────────────────
+
+def test_parse_balance_hex():
+    assert parse_balance_hex("0x0") == 0.0
+    assert parse_balance_hex("0xde0b6b3a7640000") == 1.0
+    assert parse_balance_hex(None) == 0.0
+
+
+def test_compute_capped_amount():
+    assert compute_capped_amount(0.001, 0.05) == 0.001      # under cap: unchanged
+    assert compute_capped_amount(5.0, 0.05) == 0.048        # over cap: balance - buffer
+    assert compute_capped_amount(1.0, 0.0) == 0.0           # no balance: zero
+    assert compute_capped_amount(0.001, 0.001) == 0.0       # below buffer: zero
+
+
+def test_chain_rpc_url_override():
+    from mcp_server import chain_rpc_url
+    import os
+    old = os.environ.pop("KEEPERHUB_RPC_OVERRIDE", None)
+    try:
+        assert "sepolia" in chain_rpc_url("sepolia")
+        assert "ethereum" in chain_rpc_url("unknown-chain")
+    finally:
+        if old is not None:
+            os.environ["KEEPERHUB_RPC_OVERRIDE"] = old
 
 
 if __name__ == "__main__":

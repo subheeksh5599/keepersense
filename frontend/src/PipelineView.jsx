@@ -82,6 +82,7 @@ export default function PipelineView() {
   const [error, setError] = useState(null);
   const [matches, setMatches] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [lastRun, setLastRun] = useState(null); // {workflow_id, params} for retry
   const successRef = useRef(null);
 
   useEffect(() => {
@@ -93,6 +94,66 @@ export default function PipelineView() {
   const addLog = useCallback((label, summary, raw, color) => {
     setLogs(prev => [...prev, { label, summary, raw, color, ts: Date.now() }]);
   }, []);
+
+  // Steps 4-5: execute a deployed workflow, then pull the audit trail.
+  const executeAndAudit = useCallback(async (workflowId, params) => {
+    addLog('execute', `Executing workflow ${workflowId}...`, null, STEP_COLORS.execute);
+    const executed = await callMCP('ks_execute', {
+      workflow_id: workflowId,
+      input: params,
+      chain: CHAIN,
+    });
+    if (executed.error) throw new Error(executed.error);
+    addLog(
+      'execute result',
+      `Status: ${executed.status}` +
+        (executed.tx_hash ? ` — tx ${executed.tx_hash.slice(0, 18)}…` : '') +
+        (executed.retries ? ` · retries: ${executed.retries}` : ''),
+      executed,
+      STEP_COLORS.execute
+    );
+
+    if (executed.tx_hash) {
+      setTxHash(executed.tx_hash);
+      setTxUrl(
+        executed.explorer_url ||
+        (EXPLORERS[CHAIN] || EXPLORERS.ethereum) + executed.tx_hash
+      );
+    }
+
+    if (executed.execution_id || executed.run_id) {
+      addLog('audit', 'Polling execution status...', null, STEP_COLORS.audit);
+      const status = await callMCP('ks_status', { execution_id: executed.execution_id || executed.run_id });
+      if (!status.error) {
+        addLog(
+          'audit trail',
+          `Audit trail retrieved — ${status.status || 'n/a'}` +
+            (status.tx_hash ? ` · tx ${status.tx_hash.slice(0, 18)}…` : ''),
+          status,
+          STEP_COLORS.audit
+        );
+      }
+    }
+  }, [addLog]);
+
+  // Retry a failed execution on the SAME deployed workflow (gas/transient failures).
+  const retryExecution = useCallback(async () => {
+    if (running || !lastRun) return;
+    setRunning(true);
+    setPhase('running');
+    setError(null);
+    try {
+      addLog('retry', `Retrying execution of ${lastRun.workflow_id}...`, STEP_COLORS.execute);
+      await executeAndAudit(lastRun.workflow_id, lastRun.params || {});
+      addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', null, STEP_COLORS.complete);
+    } catch (e) {
+      setError(e.message);
+      addLog('error', e.message, null, STEP_COLORS.error);
+    } finally {
+      setRunning(false);
+      setPhase('done');
+    }
+  }, [running, lastRun, addLog, executeAndAudit]);
 
   const discover = useCallback(async () => {
     if (!intent.trim() || running) return;
@@ -146,12 +207,16 @@ export default function PipelineView() {
       const configured = await callMCP('ks_configure', { workflow_id: match.id });
       if (configured.error) throw new Error(configured.error);
       const missing = configured.missing_params || [];
+      const onchain = configured.onchain || null;
       addLog(
         'configure result',
         `"${configured.workflow_name || match.name}" configured — ` +
           (missing.length === 0
             ? 'all inputs resolved, ready to deploy'
-            : `missing inputs: ${missing.join(', ')}`),
+            : `missing inputs: ${missing.join(', ')}`) +
+          (onchain && onchain.reads && onchain.reads.wallet_balance_eth
+            ? ` · chain read: balance ${onchain.reads.wallet_balance_eth} ETH`
+            : ''),
         configured,
         STEP_COLORS.configure
       );
@@ -172,45 +237,9 @@ export default function PipelineView() {
         STEP_COLORS.deploy
       );
 
-      // Step 4: Execute
-      addLog('execute', `Executing workflow ${deployed.workflow_id}...`, null, STEP_COLORS.execute);
-      const executed = await callMCP('ks_execute', {
-        workflow_id: deployed.workflow_id,
-        input: deployParams,
-        chain: CHAIN,
-      });
-      if (executed.error) throw new Error(executed.error);
-      addLog(
-        'execute result',
-        `Status: ${executed.status}` +
-          (executed.tx_hash ? ` — tx ${executed.tx_hash.slice(0, 18)}…` : '') +
-          (executed.retries ? ` · retries: ${executed.retries}` : ''),
-        executed,
-        STEP_COLORS.execute
-      );
-
-      if (executed.tx_hash) {
-        setTxHash(executed.tx_hash);
-        setTxUrl(
-          executed.explorer_url ||
-          (EXPLORERS[CHAIN] || EXPLORERS.ethereum) + executed.tx_hash
-        );
-      }
-
-      // Step 5: Status / Audit
-      if (executed.execution_id || executed.run_id) {
-        addLog('audit', 'Polling execution status...', null, STEP_COLORS.audit);
-        const status = await callMCP('ks_status', { execution_id: executed.execution_id || executed.run_id });
-        if (!status.error) {
-          addLog(
-            'audit trail',
-            `Audit trail retrieved — ${status.status || 'n/a'}` +
-              (status.tx_hash ? ` · tx ${status.tx_hash.slice(0, 18)}…` : ''),
-            status,
-            STEP_COLORS.audit
-          );
-        }
-      }
+      // Step 4-5: Execute + audit (shared with retry)
+      setLastRun({ workflow_id: deployed.workflow_id, params: deployParams });
+      await executeAndAudit(deployed.workflow_id, deployParams);
 
       addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', null, STEP_COLORS.complete);
 
@@ -221,7 +250,7 @@ export default function PipelineView() {
       setRunning(false);
       setPhase('done');
     }
-  }, [running, addLog]);
+  }, [running, addLog, executeAndAudit]);
 
   return (
     <div className="pipeline">
@@ -316,7 +345,17 @@ export default function PipelineView() {
             {error && (
               <div className="pl-error">
                 <span className="label" style={{ color: '#DC2626', display: 'block', marginBottom: 6 }}>Error</span>
-                {error}
+                <span className="mono" style={{ color: 'var(--zinc-600)' }}>{error}</span>
+                {lastRun && (
+                  <button
+                    className="pl-retry"
+                    onClick={retryExecution}
+                    disabled={running}
+                    style={{ marginTop: 10, opacity: running ? 0.5 : 1, cursor: running ? 'wait' : 'pointer' }}
+                  >
+                    {running ? 'Retrying...' : 'Retry execution ↗'}
+                  </button>
+                )}
               </div>
             )}
 

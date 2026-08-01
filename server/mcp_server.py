@@ -174,6 +174,103 @@ def _is_clone_name(name: str) -> bool:
     return bool(re.search(r"\(copy[^)]*\)\s*\d*$", name, re.IGNORECASE))
 
 
+# ── Onchain param resolution (reads chain data to fill inputs) ─────
+
+CHAIN_RPCS = {
+    "sepolia": "https://ethereum-sepolia-rpc.publicnode.com",
+    "ethereum": "https://ethereum-rpc.publicnode.com",
+    "base": "https://base-rpc.publicnode.com",
+    "base-sepolia": "https://base-sepolia-rpc.publicnode.com",
+    "arbitrum": "https://arbitrum-rpc.publicnode.com",
+    "polygon": "https://polygon-bor-rpc.publicnode.com",
+    "optimism": "https://optimism-rpc.publicnode.com",
+}
+
+
+def chain_rpc_url(chain: str) -> str:
+    return os.environ.get("KEEPERHUB_RPC_OVERRIDE") or CHAIN_RPCS.get(chain.lower(), CHAIN_RPCS["ethereum"])
+
+
+async def rpc_call(chain: str, method: str, params: list) -> dict:
+    """Minimal JSON-RPC read against a public node (no new deps)."""
+    async with httpx.AsyncClient(timeout=12) as client:
+        r = await client.post(chain_rpc_url(chain),
+                              json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+        try:
+            return r.json()
+        except Exception:
+            return {}
+
+
+def parse_balance_hex(hexstr) -> float:
+    """Wei hex string -> ETH float."""
+    try:
+        return int(hexstr, 16) / 1e18
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def compute_capped_amount(requested: float, balance_eth: float, buffer_eth: float = 0.002) -> float:
+    """Cap a requested transfer to balance minus a gas buffer (never negative)."""
+    if balance_eth <= 0:
+        return 0.0
+    return round(min(requested, max(0.0, balance_eth - buffer_eth)), 6)
+
+
+async def resolve_onchain_inputs(workflow: dict, chain: str, wallet: str | None = None) -> dict:
+    """Read live chain state and produce suggested/source-annotated params.
+
+    Reads native balance + latest block for the wallet, and caps any
+    transfer amount in the workflow's web3 nodes by that balance.
+    """
+    wallet = wallet or os.environ.get("KEEPERHUB_WALLET", "0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf")
+    reads: dict = {}
+    suggested: dict = {}
+    sources: dict = {}
+    try:
+        blk = await rpc_call(chain, "eth_blockNumber", [])
+        if blk.get("result"):
+            reads["block"] = int(blk["result"], 16)
+            sources["block"] = f"eth_blockNumber on {chain}"
+    except Exception:
+        pass
+    for node in workflow.get("nodes", []) or []:
+        cfg = (node.get("data") or {}).get("config") or {}
+        at = cfg.get("actionType") or ""
+        if not at.startswith("web3/"):
+            continue
+        if "transfer" in at:
+            try:
+                bal = await rpc_call(chain, "eth_getBalance", [wallet, "latest"])
+                if bal.get("result"):
+                    bal_eth = parse_balance_hex(bal["result"])
+                    reads["wallet_balance_eth"] = round(bal_eth, 6)
+                    reads["wallet"] = wallet
+                    sources["wallet_balance_eth"] = f"eth_getBalance({wallet}) on {chain}"
+                    amount = cfg.get("amount")
+                    if amount is not None:
+                        try:
+                            req = float(amount)
+                            capped = compute_capped_amount(req, bal_eth)
+                            if capped < req:
+                                suggested["amount"] = capped
+                                sources["amount"] = (f"capped by onchain balance "
+                                                     f"({bal_eth:.4f} ETH minus gas buffer)")
+                        except (TypeError, ValueError):
+                            pass
+            except Exception:
+                pass
+    return {"reads": reads, "suggested": suggested, "sources": sources}
+
+
+def _wallet_of(workflow: dict) -> str:
+    for node in workflow.get("nodes", []) or []:
+        cfg = (node.get("data") or {}).get("config") or {}
+        if cfg.get("recipientAddress") and "0x" in str(cfg.get("recipientAddress")):
+            return str(cfg["recipientAddress"])
+    return os.environ.get("KEEPERHUB_WALLET", "0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf")
+
+
 ACTION_INTENT_WORDS = ("transfer", "send", "pay", "claim", "distribute", "sweep", "withdraw", "deposit", "stake", "swap", "bridge", "move", "execute")
 
 
@@ -363,6 +460,20 @@ async def ks_configure(workflow_id: str, chain: str = DEFAULT_CHAIN, params: dic
 
     workflow = data if isinstance(data, dict) else {}
     configured, missing = extract_inputs(workflow, params)
+
+    # Onchain param resolution: read live chain state to fill/validate inputs.
+    onchain: dict = {}
+    try:
+        resolved = await resolve_onchain_inputs(workflow, chain)
+        if resolved.get("reads"):
+            onchain = resolved
+            for key, val in resolved.get("suggested", {}).items():
+                configured[key] = val
+                if key in missing:
+                    missing.remove(key)
+    except Exception:
+        pass
+
     return {
         "workflow_id": wid,
         "template_id": wid,
@@ -371,6 +482,7 @@ async def ks_configure(workflow_id: str, chain: str = DEFAULT_CHAIN, params: dic
         "configured_params": configured,
         "missing_params": missing,
         "ready": len(missing) == 0,
+        "onchain": onchain or None,
     }
 
 
@@ -506,6 +618,126 @@ async def ks_status(execution_id: str, chain: str = DEFAULT_CHAIN, run_id: str |
 
 # ── MCP tool registry ──────────────────────────────────────────────
 
+async def ks_pay(target_url: str, chain: str = "base", body: dict | None = None,
+                 method: str = "POST", max_price_usd: float = 1.0) -> dict:
+    """Call a paid KeeperHub workflow via x402 (pay-per-execution).
+
+    x402 flow: request the resource -> server answers 402 with x-402-*
+    headers (price, recipient, settlement) -> the agentic wallet signs an
+    EIP-3009 TransferWithAuthorization -> retry with the authorization
+    header -> server verifies the onchain settlement and returns the result.
+
+    The payer is the KeeperHub agentic wallet (`@keeperhub/wallet` node
+    package). Configure it in the environment (see x402/README.md), then
+    every paid call settles on Base USDC through the x402 facilitator.
+    """
+    if not target_url:
+        return {"error": "missing_target_url", "detail": "Pass the paid workflow URL or slug."}
+
+    # 1) Probe: expect a 402 Payment Required with x-402-* headers.
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            probe = await client.request(method, target_url,
+                                         json=body, headers={"accept": "application/json"})
+            if probe.status_code != 402:
+                return {"status": probe.status_code, "detail": probe.text[:200],
+                        "note": "No x402 payment required — call went through directly."}
+            meta = {k: v for k, v in probe.headers.items() if k.lower().startswith("x-402-")}
+    except Exception as e:
+        return {"error": "x402_probe_failed", "detail": str(e)}
+
+    if not meta:
+        return {"error": "x402_missing_headers",
+                "detail": "402 returned but no x-402-* headers present.", "status": 402}
+
+    payer_ready = os.environ.get("AGENTIC_WALLET_ORG_ID") and os.environ.get("AGENTIC_WALLET_API_KEY")
+    if not payer_ready:
+        return {
+            "error": "x402_requires_agentic_wallet",
+            "detail": "Payment required (x402). Configure the KeeperHub agentic wallet to auto-pay: "
+                      "install @keeperhub/wallet and set AGENTIC_WALLET_ORG_ID + AGENTIC_WALLET_API_KEY "
+                      "(see x402/README.md). Chain: " + chain,
+            "x402": meta,
+            "price_est_usd": meta.get("x-402-price"),
+        }
+
+    # 2) Let the agentic wallet sign and submit the EIP-3009 authorization.
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "node", "x402/pay.mjs", target_url,
+            "--method", method,
+            "--max-price-usd", str(max_price_usd),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        out, err = await asyncio.wait_for(proc.communicate(), timeout=60)
+    except FileNotFoundError:
+        return {"error": "x402_node_helper_missing",
+                "detail": "@keeperhub/wallet helper not installed. Run `npm install` in x402/."}
+    except asyncio.TimeoutError:
+        return {"error": "x402_payment_timeout", "detail": "Agentic wallet did not settle in 60s."}
+
+    if proc.returncode != 0:
+        return {"error": "x402_payment_failed", "detail": (err or out).decode()[:400]}
+
+    try:
+        return json.loads(out.decode())
+    except Exception:
+        return {"error": "x402_bad_helper_output", "detail": out.decode()[:400]}
+
+
+async def ks_identity(action: str = "status", name: str = "KeeperSense",
+                      description: str = "Intent-to-execution bridge for KeeperHub agents",
+                      chain: str = DEFAULT_CHAIN) -> dict:
+    """Register / query the agent's onchain identity (ERC-8004 compatible).
+
+    KeeperSense agents can hold an ERC-8004 agent identity (EIP-8004:
+    onchain agent registry). KeeperHub does not expose identity endpoints
+    itself, so this tool:
+      - reports capability status, and
+      - when KEEPERHUB_IDENTITY_REGISTRY is set (an ERC-8004 registry
+        address on `chain`), registers/updates the identity through
+        KeeperHub's contract-call execution (KeeperHub signs with the
+        org wallet).
+    """
+    registry = os.environ.get("KEEPERHUB_IDENTITY_REGISTRY", "").strip()
+    if action == "status":
+        return {
+            "agent": name,
+            "erc8004": {
+                "supported": bool(registry),
+                "registry": registry or None,
+                "note": ("KeeperHub exposes no identity API; registration is done via "
+                         "contract-call when KEEPERHUB_IDENTITY_REGISTRY is configured."),
+                "owner_wallet": os.environ.get("KEEPERHUB_WALLET",
+                                               "0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf"),
+            },
+        }
+    if not registry:
+        return {"error": "erc8004_not_configured",
+                "detail": "Set KEEPERHUB_IDENTITY_REGISTRY to an ERC-8004 registry address to register."}
+    if not KH_API_KEY:
+        return missing_key_error()
+
+    # register(name, metadataUri) — registry ABI is configurable via env
+    abi = os.environ.get("KEEPERHUB_IDENTITY_ABI",
+                         '[{"type":"function","name":"register","inputs":[{"name":"name","type":"string"},{"name":"metadataUri","type":"string"}],"outputs":[{"name":"agentId","type":"uint256"}],"stateMutability":"nonpayable"}]')
+    status, data = await kh_request("POST", "/api/execute/contract-call", json={
+        "chain": chain,
+        "to": registry,
+        "abi": json.loads(abi),
+        "functionName": "register",
+        "args": [name, description],
+    })
+    if status in (200, 201, 202):
+        return {
+            "status": "identity_registered",
+            "agent": name,
+            "registry": registry,
+            "chain": chain,
+            "execution": data,
+        }
+    return parse_api_error(data, f"Identity registration failed ({status})")
+
+
 TOOLS = {
     "ks_discover": {
         "name": "ks_discover",
@@ -573,6 +805,35 @@ TOOLS = {
             "required": ["execution_id"],
         },
     },
+    "ks_pay": {
+        "name": "ks_pay",
+        "description": "Call a paid KeeperHub workflow via x402 (pay-per-execution on Base USDC). Requires the agentic wallet configured (see x402/README.md).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target_url": {"type": "string", "description": "Paid workflow URL or slug to call"},
+                "chain": {"type": "string", "description": "Settlement chain (default: base)"},
+                "method": {"type": "string", "description": "HTTP method (default: POST)"},
+                "body": {"type": "object", "description": "Optional request body"},
+                "max_price_usd": {"type": "number", "description": "Max acceptable price in USD (default: 1.0)"},
+            },
+            "required": ["target_url"],
+        },
+    },
+    "ks_identity": {
+        "name": "ks_identity",
+        "description": "Register or query the agent's ERC-8004 onchain identity (registry via KEEPERHUB_IDENTITY_REGISTRY env).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "description": "status (default) or register"},
+                "name": {"type": "string", "description": "Agent name (default: KeeperSense)"},
+                "description": {"type": "string", "description": "Identity metadata / description"},
+                "chain": {"type": "string", "description": "Chain of the registry (default: sepolia)"},
+            },
+            "required": [],
+        },
+    },
 }
 
 HANDLERS: dict[str, Callable[..., Awaitable[dict]]] = {
@@ -581,6 +842,8 @@ HANDLERS: dict[str, Callable[..., Awaitable[dict]]] = {
     "ks_deploy": ks_deploy,
     "ks_execute": ks_execute,
     "ks_status": ks_status,
+    "ks_pay": ks_pay,
+    "ks_identity": ks_identity,
 }
 
 

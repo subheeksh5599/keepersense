@@ -1,0 +1,8 @@
+{
+  "name": "keepersense-x402",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@keeperhub/wallet": "latest"
+  }
+}
