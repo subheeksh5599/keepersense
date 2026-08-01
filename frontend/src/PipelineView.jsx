@@ -2,6 +2,16 @@ import React, { useState, useCallback } from 'react';
 
 const MCP_URL = '/api';
 
+const STEP_COLORS = {
+  discover: '#0066FF',
+  configure: '#D97706',
+  deploy: '#7C3AED',
+  execute: '#BE185D',
+  audit: '#22C55E',
+  complete: '#22C55E',
+  error: '#DC2626',
+};
+
 async function callMCP(tool, args) {
   const res = await fetch(MCP_URL, {
     method: 'POST',
@@ -19,11 +29,11 @@ async function callMCP(tool, args) {
   return content ? JSON.parse(content) : data.result;
 }
 
-function LogLine({ label, data, color = '#4ade80' }) {
+function LogLine({ label, data, color }) {
   return (
-    <div style={{ padding: '8px 12px', borderLeft: `3px solid ${color}`, marginBottom: 6, background: 'rgba(255,255,255,0.02)', borderRadius: 4 }}>
-      <span style={{ color, fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
-      <pre style={{ margin: '4px 0 0', fontSize: 12, color: '#a1a1aa', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+    <div className="pl-log" style={{ borderLeftColor: color }}>
+      <span className="pl-log-label" style={{ color }}>{label}</span>
+      <pre className="pl-log-body">
         {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
       </pre>
     </div>
@@ -50,40 +60,40 @@ export default function PipelineView() {
 
     try {
       // Step 1: Discover
-      addLog('discover', `Searching templates for: "${intent}"`, '#60a5fa');
+      addLog('discover', `Searching workflows for: "${intent}"`, STEP_COLORS.discover);
       const discovered = await callMCP('ks_discover', { intent });
       if (discovered.error) throw new Error(discovered.error);
-      addLog('discover result', discovered, '#60a5fa');
+      addLog('discover result', discovered, STEP_COLORS.discover);
 
       const top = discovered.top_match;
-      if (!top) throw new Error('No matching template found. Try a different intent.');
+      if (!top) throw new Error('No matching workflow found. Try a different intent.');
 
       // Step 2: Configure
-      addLog('configure', `Configuring "${top.name}" (score: ${top.score})`, '#f59e0b');
+      addLog('configure', `Configuring "${top.name}" (score: ${top.score})`, STEP_COLORS.configure);
       const configured = await callMCP('ks_configure', { workflow_id: top.id });
       if (configured.error) throw new Error(configured.error);
-      addLog('configure result', configured, '#f59e0b');
+      addLog('configure result', configured, STEP_COLORS.configure);
 
       const deployParams = configured.configured_params || {};
 
       // Step 3: Deploy (clone the matched workflow)
-      addLog('deploy', 'Deploying workflow to KeeperHub...', '#a78bfa');
+      addLog('deploy', 'Deploying workflow to KeeperHub...', STEP_COLORS.deploy);
       const deployed = await callMCP('ks_deploy', {
         source_workflow_id: top.id,
         chain: 'sepolia',
       });
       if (deployed.error) throw new Error(deployed.error);
-      addLog('deploy result', deployed, '#a78bfa');
+      addLog('deploy result', deployed, STEP_COLORS.deploy);
 
       // Step 4: Execute
-      addLog('execute', `Executing workflow ${deployed.workflow_id}...`, '#f472b6');
+      addLog('execute', `Executing workflow ${deployed.workflow_id}...`, STEP_COLORS.execute);
       const executed = await callMCP('ks_execute', {
         workflow_id: deployed.workflow_id,
         input: deployParams,
         chain: 'sepolia',
       });
       if (executed.error) throw new Error(executed.error);
-      addLog('execute result', executed, '#f472b6');
+      addLog('execute result', executed, STEP_COLORS.execute);
 
       if (executed.tx_hash) {
         setTxHash(executed.tx_hash);
@@ -91,181 +101,113 @@ export default function PipelineView() {
 
       // Step 5: Status / Audit
       if (executed.execution_id || executed.run_id) {
-        addLog('audit', 'Polling execution status...', '#4ade80');
+        addLog('audit', 'Polling execution status...', STEP_COLORS.audit);
         const status = await callMCP('ks_status', { execution_id: executed.execution_id || executed.run_id });
         if (!status.error) {
-          addLog('audit trail', status, '#4ade80');
+          addLog('audit trail', status, STEP_COLORS.audit);
         }
       }
 
-      addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', '#22c55e');
+      addLog('complete', 'Pipeline finished. KeeperHub executed onchain.', STEP_COLORS.complete);
 
     } catch (e) {
       setError(e.message);
-      addLog('error', e.message, '#ef4444');
+      addLog('error', e.message, STEP_COLORS.error);
     } finally {
       setRunning(false);
     }
   }, [intent, running, addLog]);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>KeeperSense</h1>
-          <p style={styles.subtitle}>Intent → Execution. Agent says what, KeeperHub does it.</p>
-        </div>
-
-        <div style={styles.inputRow}>
-          <input
-            style={styles.input}
-            placeholder='What do you want to do onchain? e.g. "protect my vault from liquidation"'
-            value={intent}
-            onChange={e => setIntent(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && run()}
-            disabled={running}
-          />
-          <button
-            style={{ ...styles.button, opacity: running ? 0.5 : 1 }}
-            onClick={run}
-            disabled={running || !intent.trim()}
-          >
-            {running ? 'Running...' : 'Execute'}
-          </button>
-        </div>
-
-        {error && (
-          <div style={styles.error}>
-            {error}
-          </div>
-        )}
-
-        {txHash && (
-          <div style={styles.success}>
-            <span>Tx: </span>
-            <a
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
-              target="_blank"
-              rel="noopener"
-              style={styles.link}
-            >
-              {txHash.slice(0, 10)}...{txHash.slice(-8)}
-            </a>
-            <span style={{ marginLeft: 12, fontSize: 12, color: '#22c55e' }}>✓ Onchain</span>
-          </div>
-        )}
-
-        {logs.length > 0 && (
-          <div style={styles.logs}>
-            {logs.map((log, i) => (
-              <LogLine key={i} label={log.label} data={log.data} color={log.color} />
-            ))}
-          </div>
-        )}
-
-        <div style={styles.footer}>
-          <span>Powered by KeeperHub MCP · Sepolia Testnet</span>
-          <span>Hermes Agent · KeeperHub Plugin</span>
+    <div className="pipeline">
+      <div className="noise" />
+      <div className="grid-lines">
+        <div className="gl-inner">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <span key={i} />
+          ))}
         </div>
       </div>
+
+      <header className="header">
+        <div className="h-inner">
+          <nav className="h-nav">
+            <a href="#/">← Landing</a>
+            <a href="#tools" onClick={() => { window.location.hash = '#/'; }}>Tools</a>
+          </nav>
+          <div className="h-logo">
+            <span className="serif-i">Keeper</span>
+            <span style={{ fontWeight: 900 }}>SENSE</span>
+          </div>
+          <a className="h-cta" href="https://github.com/subheeksh5599/keepersense" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </div>
+      </header>
+
+      <main className="pl-main">
+        <div className="container">
+          <div className="pl-head">
+            <div className="label" style={{ color: 'var(--zinc-500)' }}>Pipeline · Sepolia</div>
+            <h1 className="pl-title">
+              Intent <span className="serif-i">to</span> execution
+            </h1>
+            <p className="pl-sub mono" style={{ color: 'var(--zinc-500)' }}>
+              AGENT SAYS WHAT · KEEPERHUB DOES IT · TX HASH PROVES IT
+            </p>
+          </div>
+
+          <div className="pl-card">
+            <div className="pl-row">
+              <input
+                className="pl-input"
+                placeholder='What do you want to do onchain? e.g. "protect my vault from liquidation"'
+                value={intent}
+                onChange={e => setIntent(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && run()}
+                disabled={running}
+              />
+              <button
+                className="btn-start"
+                onClick={run}
+                disabled={running || !intent.trim()}
+                style={{ opacity: running ? 0.5 : 1, cursor: running ? 'wait' : 'pointer' }}
+              >
+                {running ? 'Running...' : 'Execute'}
+                {!running && <span className="arr">↗</span>}
+              </button>
+            </div>
+
+            {error && (
+              <div className="pl-error">
+                <span className="label" style={{ color: '#DC2626', display: 'block', marginBottom: 6 }}>Error</span>
+                {error}
+              </div>
+            )}
+
+            {txHash && (
+              <div className="pl-success">
+                <span className="label" style={{ color: 'var(--zinc-500)' }}>Tx</span>
+                <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener">
+                  {txHash}
+                </a>
+                <span className="pl-badge">Onchain</span>
+              </div>
+            )}
+
+            {logs.length > 0 && (
+              <div className="pl-logs">
+                {logs.map((log, i) => (
+                  <LogLine key={i} label={log.label} data={log.data} color={log.color} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="pl-foot">
+            <span className="mono">KEEPERHUB API · app.keeperhub.com/api</span>
+            <span className="mono">5 TOOLS · 1 PIPELINE · AUDIT TRAIL</span>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: '#0a0a0a',
-    color: '#ebebe5',
-    fontFamily: "'Inter', -apple-system, sans-serif",
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 720,
-    background: '#141414',
-    border: '1px solid #2a2a2a',
-    borderRadius: 12,
-    padding: '32px 28px',
-  },
-  header: {
-    marginBottom: 28,
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 700,
-    color: '#00ff4f',
-    margin: 0,
-    letterSpacing: -1,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#71717a',
-    marginTop: 6,
-  },
-  inputRow: {
-    display: 'flex',
-    gap: 10,
-    marginBottom: 20,
-  },
-  input: {
-    flex: 1,
-    padding: '12px 16px',
-    fontSize: 14,
-    background: '#1a1a1a',
-    border: '1px solid #2a2a2a',
-    borderRadius: 8,
-    color: '#ebebe5',
-    outline: 'none',
-  },
-  button: {
-    padding: '12px 24px',
-    background: '#00ff4f',
-    color: '#0a0a0a',
-    border: 'none',
-    borderRadius: 8,
-    fontWeight: 700,
-    fontSize: 14,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  error: {
-    padding: '12px 16px',
-    background: 'rgba(239,68,68,0.1)',
-    border: '1px solid rgba(239,68,68,0.3)',
-    borderRadius: 8,
-    color: '#ef4444',
-    fontSize: 14,
-    marginBottom: 16,
-    fontFamily: 'monospace',
-  },
-  success: {
-    padding: '12px 16px',
-    background: 'rgba(34,197,94,0.1)',
-    border: '1px solid rgba(34,197,94,0.3)',
-    borderRadius: 8,
-    fontSize: 14,
-    marginBottom: 16,
-    fontFamily: 'monospace',
-    wordBreak: 'break-all',
-  },
-  link: {
-    color: '#60a5fa',
-    textDecoration: 'none',
-  },
-  logs: {
-    marginBottom: 20,
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 11,
-    color: '#3f3f46',
-    borderTop: '1px solid #1f1f1f',
-    paddingTop: 16,
-  },
-};

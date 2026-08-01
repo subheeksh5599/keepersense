@@ -20,7 +20,7 @@ export function runChecks() {
   for (const [name, ok] of checks) out.push(`${ok ? 'PASS' : 'FAIL'} ${name}`);
 
   const pipeHtml = renderToString(React.createElement(PipelineView));
-  out.push(`${pipeHtml.includes('KeeperSense') ? 'PASS' : 'FAIL'} pipeline view renders`);
+  out.push(`${(pipeHtml.includes('Intent') && pipeHtml.includes('SENSE') && pipeHtml.includes('pl-card')) ? 'PASS' : 'FAIL'} pipeline view renders`);
 
   const failed = checks.filter(([, ok]) => !ok).length;
   out.push(failed === 0 ? 'ALL SSR CHECKS PASSED' : `${failed} CHECKS FAILED`);
