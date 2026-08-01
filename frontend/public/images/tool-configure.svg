@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <defs>
+    <pattern id="g2" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M30 0H0V30" stroke="#18181B" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="400" fill="#EBEBE8"/>
+  <rect width="600" height="400" fill="url(#g2)"/>
+  <g font-family="monospace">
+    <rect x="120" y="60" width="360" height="48" stroke="#18181B" stroke-width="1.5"/>
+    <text x="140" y="88" font-size="13" fill="#18181B">toAddress</text>
+    <text x="450" y="88" text-anchor="end" font-size="11" fill="#71717A">auto</text>
+
+    <rect x="120" y="128" width="360" height="48" stroke="#18181B" stroke-width="1.5"/>
+    <text x="140" y="156" font-size="13" fill="#18181B">amount</text>
+    <text x="450" y="156" text-anchor="end" font-size="11" fill="#71717A">0.01</text>
+
+    <rect x="120" y="196" width="360" height="48" stroke="#18181B" stroke-width="1.5"/>
+    <text x="140" y="224" font-size="13" fill="#18181B">healthFactor</text>
+    <text x="450" y="224" text-anchor="end" font-size="11" fill="#71717A">1.05</text>
+
+    <rect x="120" y="264" width="360" height="48" stroke="#18181B" stroke-width="1.5" stroke-dasharray="5 5"/>
+    <text x="140" y="292" font-size="13" fill="#71717A">notifyChannel</text>
+    <text x="450" y="292" text-anchor="end" font-size="11" fill="#0066FF">REQUIRED</text>
+  </g>
+  <text x="300" y="360" text-anchor="middle" font-family="monospace" font-size="11" fill="#71717A" letter-spacing="3">KS-02 · CONFIGURE</text>
+  <text x="300" y="24" text-anchor="middle" font-family="monospace" font-size="11" fill="#71717A" letter-spacing="3">INPUT SCHEMA RESOLUTION</text>
+</svg>
