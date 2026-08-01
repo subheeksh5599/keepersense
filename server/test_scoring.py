@@ -11,6 +11,10 @@ from mcp_server import (  # noqa: E402
     input_schema_of,
     tx_hash_of,
     workflow_id_of,
+    workflow_chain_of,
+    chain_name_of,
+    workflow_executes_onchain,
+    _is_clone_name,
     explorer_url_for,
 )
 
@@ -116,6 +120,44 @@ def test_workflow_id_of():
 
 def test_explorer_url_defaults_to_sepolia():
     assert explorer_url_for("0xabc") == "https://sepolia.etherscan.io/tx/0xabc"
+
+
+# ── chain / execution detection ────────────────────────────────────
+
+def test_chain_from_node_config():
+    item = {"name": "Demo", "nodes": [{"data": {"config": {"actionType": "web3/transfer-funds", "network": "11155111"}}}]}
+    assert workflow_chain_of(item) == "sepolia"
+
+
+def test_chain_name_mapping():
+    assert chain_name_of("11155111") == "sepolia"
+    assert chain_name_of(8453) == "base"
+    assert chain_name_of("ethereum") == "ethereum"
+    assert chain_name_of(None) == "ethereum"
+
+
+def test_executes_onchain():
+    write = {"nodes": [{"data": {"config": {"actionType": "web3/transfer-funds"}}}]}
+    read = {"nodes": [{"data": {"config": {"actionType": "aave-v3/get-user-account-data"}}}]}
+    assert workflow_executes_onchain(write) is True
+    assert workflow_executes_onchain(read) is False
+
+
+def test_clone_name_filter():
+    assert _is_clone_name("KeeperSense Demo Transfer (Copy)") is True
+    assert _is_clone_name("KeeperSense Demo Transfer (Copy) 5") is True
+    assert _is_clone_name("KeeperSense Demo Transfer") is False
+
+
+def test_action_intent_boost_ranks_executors_first():
+    from mcp_server import rank_workflows
+    items = [
+        {"workflowId": "wf_read", "name": "Aave Scanner", "description": "liquidation risk", "nodes": [{"data": {"config": {"actionType": "aave-v3/get-user-account-data"}}}]},
+        {"workflowId": "wf_xfer", "name": "ETH Transfer", "description": "send eth", "nodes": [{"data": {"config": {"actionType": "web3/transfer-funds", "network": "11155111"}}}]},
+    ]
+    out = rank_workflows(items, "transfer 0.001 eth")
+    assert out[0]["workflow_id"] == "wf_xfer"
+    assert out[0]["chain"] == "sepolia"
 
 
 if __name__ == "__main__":

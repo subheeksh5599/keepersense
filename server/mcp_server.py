@@ -19,6 +19,7 @@ Run:
 """
 import json
 import os
+import re
 import asyncio
 import httpx
 from datetime import datetime, timezone
@@ -70,13 +71,6 @@ def workflow_name_of(item: dict) -> str:
     return str(_walk(item, "name", "title", "workflowName") or "Unknown")
 
 
-def workflow_chain_of(item: dict) -> str:
-    chains = _walk(item, "chains", "chainIds")
-    if isinstance(chains, list) and chains:
-        return str(chains[0])
-    return str(_walk(item, "chain", "network", "chainId") or "ethereum")
-
-
 INTENT_KEYWORDS = {
     "protect": ["liquidation", "health", "collateral", "vault", "safety"],
     "monitor": ["watch", "track", "alert", "notify", "event"],
@@ -112,8 +106,81 @@ def score_template(template: dict, intent: str) -> float:
     return round(score, 2)
 
 
+def workflow_chain_of(item: dict) -> str:
+    chains = _walk(item, "chains", "chainIds")
+    if isinstance(chains, list) and chains:
+        return chain_name_of(chains[0])
+    direct = _walk(item, "chain", "network", "chainId")
+    if direct:
+        return chain_name_of(direct)
+    # fall back to the node configs (the real chain lives there for web3 nodes)
+    for node in item.get("nodes", []) or []:
+        cfg = (node.get("data") or {}).get("config") or {}
+        net = cfg.get("network") or cfg.get("chainId")
+        if net:
+            return chain_name_of(net)
+    return "ethereum"
+
+
+CHAIN_NAMES = {
+    "1": "ethereum",
+    "11155111": "sepolia",
+    "8453": "base",
+    "84532": "base-sepolia",
+    "42161": "arbitrum",
+    "421614": "arbitrum-sepolia",
+    "137": "polygon",
+    "80002": "polygon-amoy",
+    "10": "optimism",
+    "11155420": "optimism-sepolia",
+    "56": "bnb",
+    "97": "bnb-testnet",
+    "43114": "avalanche",
+    "43113": "avalanche-fuji",
+    "101": "solana",
+    "103": "solana-devnet",
+}
+
+
+def chain_name_of(value) -> str:
+    """Map a chain id (int/str) or name to a canonical lowercase name."""
+    if value is None:
+        return "ethereum"
+    v = str(value)
+    if v in CHAIN_NAMES:
+        return CHAIN_NAMES[v]
+    return v.lower().replace(" ", "-")
+
+
+WEB3_READ_HINTS = ("read", "get-", "balance", "info", "simulate")
+
+
+def workflow_executes_onchain(item: dict) -> bool:
+    """True if any action node is a web3 WRITE (transfer, claim, contract call...).
+
+    Read-only web3 actions (e.g. web3/batch-read-contract) don't move value
+    and must not trigger the action-intent boost.
+    """
+    for node in item.get("nodes", []) or []:
+        cfg = (node.get("data") or {}).get("config") or {}
+        at = cfg.get("actionType") or ""
+        if at.startswith("web3/") and not any(h in at for h in WEB3_READ_HINTS):
+            return True
+    return False
+
+
+def _is_clone_name(name: str) -> bool:
+    """True for deploy-clone leftovers like 'X (Copy)' / 'X (Copy) 5'."""
+    return bool(re.search(r"\(copy[^)]*\)\s*\d*$", name, re.IGNORECASE))
+
+
+ACTION_INTENT_WORDS = ("transfer", "send", "pay", "claim", "distribute", "sweep", "withdraw", "deposit", "stake", "swap", "bridge", "move", "execute")
+
+
 def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
     """Normalize raw API items and rank them against the intent."""
+    intent_lower = intent.lower()
+    action_intent = any(w in intent_lower for w in ACTION_INTENT_WORDS)
     scored = []
     for t in items:
         if not isinstance(t, dict):
@@ -121,8 +188,12 @@ def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
         wid = workflow_id_of(t)
         if not wid:
             continue
+        executes = workflow_executes_onchain(t)
         s = score_template(t, intent)
         if t.get("_org"):  # boost the org's own workflows (they execute out of the box)
+            s += 1.0
+        if action_intent and executes:
+            # workflows that actually move value beat read-only scanners for action intents
             s += 1.0
         scored.append({
             "workflow_id": wid,
@@ -131,8 +202,11 @@ def rank_workflows(items: list, intent: str, limit: int = 10) -> list:
             "description": _walk(t, "description") or "",
             "score": round(s, 2),
             "chain": workflow_chain_of(t),
+            "_executes": executes,
         })
-    scored.sort(key=lambda x: x["score"], reverse=True)
+    scored.sort(key=lambda x: (x["score"], x["_executes"]), reverse=True)
+    for m in scored:
+        m.pop("_executes", None)
     return scored[:limit]
 
 
@@ -252,11 +326,14 @@ async def ks_discover(intent: str) -> dict:
                 if not isinstance(item, dict):
                     continue
                 wid = workflow_id_of(item)
-                if wid and wid not in seen:
-                    seen.add(wid)
-                    if is_org:
-                        item["_org"] = True
-                    items.append(item)
+                if not wid or wid in seen:
+                    continue
+                if is_org and _is_clone_name(workflow_name_of(item)):
+                    continue  # skip "(Copy)" leftovers from earlier deploy runs
+                seen.add(wid)
+                if is_org:
+                    item["_org"] = True
+                items.append(item)
         elif status in (401, 403):
             return parse_api_error(data, f"KeeperHub auth failed ({status})")
 
