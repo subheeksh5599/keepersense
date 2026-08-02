@@ -10,7 +10,7 @@ const TOOLS = [
   {
     id: 'KS-02',
     name: 'Configure',
-    desc: 'Input schema resolution. Defaults auto-filled, required parameters flagged, agents told exactly what to supply.',
+    desc: 'Parameter resolution from node configuration plus live chain state (balance, block). Defaults auto-filled, required parameters flagged, agents told exactly what to supply.',
     img: '/images/tool-configure.svg',
   },
   {
