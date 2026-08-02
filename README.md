@@ -15,6 +15,12 @@ Built with the Hermes Agent KeeperHub plugin. Seven MCP tools. One pipeline.
 
 **Live onchain — executed through KeeperHub (Sepolia):**
 
+## Demo video (1:52)
+
+<video src="docs/media/demo.mp4" controls preload="metadata" style="max-width: 100%; border-radius: 8px; border: 1px solid #333;"></video>
+
+[Open the demo in a new tab ↗](docs/media/demo.mp4) · [Download](https://raw.githubusercontent.com/subheeksh5599/keepersense/master/docs/media/demo.mp4)
+
 | Tx | Hash | Explorer |
 |---|---|---|
 | Direct transfer (0.001 ETH) | `0x8a9dc43e…b6768dd` | https://sepolia.etherscan.io/tx/0x8a9dc43e09d9023f7d61f5f17808f846e2fc9dec2c4f5740b81c112b2f6768dd |
