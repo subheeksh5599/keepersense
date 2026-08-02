@@ -1,25 +1,46 @@
 <div align="center">
 
+<img src="docs/media/1.png" alt="KeeperSense — intent to execution, live on Sepolia" width="100%" />
+
+&nbsp;
+
 [![MCP Server](https://img.shields.io/badge/mcp-7_tools-00ff4f?style=flat)](https://github.com/subheeksh5599/keepersense)
 [![License](https://img.shields.io/badge/license-MIT-00ff4f?style=flat)](LICENSE)
 [![KeeperHub](https://img.shields.io/badge/KeeperHub-execution-14151a?style=flat)](https://keeperhub.com)
 [![Hermes Agent](https://img.shields.io/badge/Hermes-agent-14151a?style=flat)](https://github.com/NousResearch/hermes-agent)
+![Tests](https://img.shields.io/badge/tests-25%20passing-3fb950)
+![Stack](https://img.shields.io/badge/Python%20·%20Vite%20·%20React-1f1f23)
+[![Sepolia live](https://img.shields.io/badge/Sepolia-10%20txs%20live-34d399)](https://sepolia.etherscan.io/address/0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf)
 
-### The brain between agent intent and KeeperHub execution
+### The brain between agent intent and KeeperHub execution — intent in, transaction out.
+
+KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from the workflow's node configuration and live chain state, deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder. Built on KeeperHub's execution engine — **seven MCP tools, one pipeline, every transaction real.**
+
+**[ Live demo ↗ ](https://keepersense.vercel.app)** &nbsp;·&nbsp; **[ Watch the demo ↗ ](#-demo)** &nbsp;·&nbsp; **[ How it works ↗ ](#how-keepersense-works)** &nbsp;·&nbsp; **[ Try the API ↗ ](#try-it-against-the-live-api-5-minutes)** &nbsp;·&nbsp; **[ Run it locally ↗ ](#run-it-locally)**
 
 </div>
 
-KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from the workflow's node configuration and live chain state (KeeperHub's inputSchema is null, so KeeperSense reads the real inputs), deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder.
+---
 
-Built with the Hermes Agent KeeperHub plugin. Seven MCP tools. One pipeline.
-
-**Live onchain — executed through KeeperHub (Sepolia):**
-
-## Demo video (1:52)
+## ▶ Demo
 
 <video src="docs/media/demo.mp4" controls preload="metadata" style="max-width: 100%; border-radius: 8px; border: 1px solid #333;"></video>
 
-[Open the demo in a new tab ↗](docs/media/demo.mp4) · [Download](https://raw.githubusercontent.com/subheeksh5599/keepersense/master/docs/media/demo.mp4)
+_1:52 — the real pipeline driven live: intent → discovery → configuration → deployment → execution → onchain proof. [Open in a new tab ↗](docs/media/demo.mp4) · also [viewable on GitHub ↗](https://github.com/subheeksh5599/keepersense/blob/master/docs/media/demo.mp4)_
+
+One intent is typed in plain English — "transfer 0.001 eth to my wallet." KeeperSense scores the registry, filters to free-tier workflows, reads live chain state to fill the parameters, deploys a real workflow instance into KeeperHub, executes it on Sepolia, and returns the transaction hash. The explorer receipt is opened on camera: status success, from KeeperHub's wallet to mine. No simulation, no mocked data — **the pipeline you watch in the video is the pipeline running at [keepersense.vercel.app](https://keepersense.vercel.app) right now.**
+
+---
+
+## Proof — nothing here is a mockup
+
+Everything below is live and clickable.
+
+**Live site.** [keepersense.vercel.app](https://keepersense.vercel.app) — landing + the working pipeline (type an intent, watch a real transaction).
+
+**Live API.** `https://keepersense.vercel.app/api` — the MCP server: `tools/list` + 7 `ks_*` tools, bring-your-own-key (any KeeperHub org can drive it with its own `Authorization: Bearer kh_...`).
+
+**On Sepolia.** 10 transactions executed through KeeperHub, all confirmed on-chain:
 
 | Tx | Hash | Explorer |
 |---|---|---|
@@ -34,10 +55,14 @@ Built with the Hermes Agent KeeperHub plugin. Seven MCP tools. One pipeline.
 | Frontend drive (live-site run, pre-fix bundle) | `0xe6da37e7…1ca56` | https://sepolia.etherscan.io/tx/0xe6da37e7635d65fe6371fb48e7f02fdb92b9806a6229ee30c94ad6015ec1ca56 |
 | Frontend drive (post-fix bundle: summaries + JSON toggle) | `0x0ca7010f…326026` | https://sepolia.etherscan.io/tx/0x0ca7010fdf7de7181124be91019484f911f72987fdb12fbec42bc31773264026 |
 
+**Check it yourself, no wallet.** Drive the pipeline at [keepersense.vercel.app](https://keepersense.vercel.app) (each run spends 0.001 ETH from the KeeperHub org wallet), or call the API with your own key — the README's [Try it](#try-it-against-the-live-api-5-minutes) section has the exact curl commands.
+
 ---
 
 ## Table of contents
 
+- [Demo](#-demo)
+- [Proof — nothing here is a mockup](#proof--nothing-here-is-a-mockup)
 - [See it in one command](#see-it-in-one-command)
 - [The problem KeeperSense solves](#the-problem-keepersense-solves)
 - [How KeeperSense works](#how-keepersense-works)
