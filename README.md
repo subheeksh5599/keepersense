@@ -22,7 +22,7 @@ KeeperSense is the intelligence layer that lets any AI agent execute onchain wit
 
 ---
 
-## ▶ Demo
+## ▶ The Pipeline
 
 <img src="docs/media/2.png" alt="KeeperSense pipeline — intent to execution" width="100%" />
 
@@ -61,7 +61,7 @@ Everything below is live and clickable.
 
 ## Table of contents
 
-- [Demo](#-demo)
+- [The Pipeline](#-the-pipeline)
 - [Proof — nothing here is a mockup](#proof--nothing-here-is-a-mockup)
 - [See it in one command](#see-it-in-one-command)
 - [The problem KeeperSense solves](#the-problem-keepersense-solves)
