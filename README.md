@@ -10,7 +10,7 @@
 [![Hermes Agent](https://img.shields.io/badge/Hermes-agent-14151a?style=flat)](https://github.com/NousResearch/hermes-agent)
 ![Tests](https://img.shields.io/badge/tests-25%20passing-3fb950)
 ![Stack](https://img.shields.io/badge/Python%20·%20Vite%20·%20React-1f1f23)
-[![Sepolia live](https://img.shields.io/badge/Sepolia-10%20txs%20live-34d399)](https://sepolia.etherscan.io/address/0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf)
+[![Sepolia live](https://img.shields.io/badge/Sepolia-11%20txs%20live-34d399)](https://sepolia.etherscan.io/address/0x1776D4D751d97c85845bF54e6CE364CEc62D4bBf)
 
 ### The brain between agent intent and KeeperHub execution — intent in, transaction out.
 
@@ -40,7 +40,9 @@ Everything below is live and clickable.
 
 **Live API.** `https://keepersense.vercel.app/api` — the MCP server: `tools/list` + 7 `ks_*` tools, bring-your-own-key (any KeeperHub org can drive it with its own `Authorization: Bearer kh_...`).
 
-**On Sepolia.** 10 transactions executed through KeeperHub, all confirmed on-chain:
+**KeeperHub surfaces used.** REST API (all 7 tools), hosted MCP server (full `initialize` → `notifications/initialized` handshake; our contract-call tx was verified through their `get_direct_execution_status` tool), direct-execution endpoints (`/api/execute/transfer` + `/api/execute/contract-call`, gas-sponsored), workflow builder (the demo transfer workflow), and the audit trail (`status` + `logs` normalized in `ks_status`).
+
+**On Sepolia.** 11 transactions executed through KeeperHub, all confirmed on-chain:
 
 | Tx | Hash | Explorer |
 |---|---|---|
@@ -54,6 +56,9 @@ Everything below is live and clickable.
 | Live-site browser drive (audit trail, tx panel) | `0x2085c9dd…98efb6` | https://sepolia.etherscan.io/tx/0x2085c9dd0dcec37d498ea3858cce1869a58ba9a3b4cf477f7379da50e498efb6 |
 | Frontend drive (live-site run, pre-fix bundle) | `0xe6da37e7…1ca56` | https://sepolia.etherscan.io/tx/0xe6da37e7635d65fe6371fb48e7f02fdb92b9806a6229ee30c94ad6015ec1ca56 |
 | Frontend drive (post-fix bundle: summaries + JSON toggle) | `0x0ca7010f…326026` | https://sepolia.etherscan.io/tx/0x0ca7010fdf7de7181124be91019484f911f72987fdb12fbec42bc31773264026 |
+| Contract-call: minted 1000 MockUSDC via `/api/execute/contract-call` — **gas sponsored by KeeperHub** | `0xebd62151…7efa9` | https://sepolia.etherscan.io/tx/0xebd621512341b11bb8fd272e00908a95d4bf90125083693cfcbccc6154f7efa9 |
+
+That last one is the second use case: an arbitrary contract interaction (ERC-20 mint), simulated first (`wouldRevert: false`), then executed — KeeperHub sponsored the gas (`"sponsored": true`), and the on-chain `balanceOf` read confirms 1000 MockUSDC in the org wallet. KeeperSense executes more than transfers — it calls contracts.
 
 **Check it yourself, no wallet.** Drive the pipeline at [keepersense.vercel.app](https://keepersense.vercel.app) (each run spends 0.001 ETH from the KeeperHub org wallet), or call the API with your own key — the README's [Try it](#try-it-against-the-live-api-5-minutes) section has the exact curl commands.
 
