@@ -24,9 +24,9 @@ KeeperSense is the intelligence layer that lets any AI agent execute onchain wit
 
 ## ▶ Demo
 
-<video src="docs/media/demo.mp4" controls preload="metadata" style="max-width: 100%; border-radius: 8px; border: 1px solid #333;"></video>
+<a href="docs/media/demo.mp4"><img src="docs/media/poster.png" alt="Play the 1:52 demo video" width="100%" style="border-radius: 8px; border: 1px solid #333;" /></a>
 
-_1:52 — the real pipeline driven live: intent → discovery → configuration → deployment → execution → onchain proof. [Open in a new tab ↗](docs/media/demo.mp4) · also [viewable on GitHub ↗](https://github.com/subheeksh5599/keepersense/blob/master/docs/media/demo.mp4)_
+_1:52 — the real pipeline driven live: intent → discovery → configuration → deployment → execution → onchain proof. Click the image to play, or [open in a new tab ↗](docs/media/demo.mp4) · [viewable on GitHub ↗](https://github.com/subheeksh5599/keepersense/blob/master/docs/media/demo.mp4)_
 
 One intent is typed in plain English — "transfer 0.001 eth to my wallet." KeeperSense scores the registry, filters to free-tier workflows, reads live chain state to fill the parameters, deploys a real workflow instance into KeeperHub, executes it on Sepolia, and returns the transaction hash. The explorer receipt is opened on camera: status success, from KeeperHub's wallet to mine. No simulation, no mocked data — **the pipeline you watch in the video is the pipeline running at [keepersense.vercel.app](https://keepersense.vercel.app) right now.**
 
