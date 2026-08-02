@@ -381,7 +381,7 @@ export default function PipelineView() {
             {logs.length > 0 && (
               <div className="pl-logs">
                 {logs.map((log, i) => (
-                  <LogLine key={i} label={log.label} data={log.data} color={log.color} />
+                  <LogLine key={i} label={log.label} summary={log.summary} raw={log.raw} color={log.color} />
                 ))}
               </div>
             )}
