@@ -9,3 +9,10 @@ dist/
 .ssr-bundle.cjs
 .vercel/
 .vercel
+
+# Local-only working docs (never pushed — keep on disk, not in git)
+/DEMO_SCRIPT.md
+/SUBMISSION.md
+/TEST_RESULTS.md
+/*checklist*.md
+/*pitch*.md
