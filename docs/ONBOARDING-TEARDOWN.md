@@ -64,7 +64,7 @@ Getting Sepolia ETH into the wallet required an external faucet (the docs' "fund
 | 1 | Base URL `/api` double-path | docs | S | High |
 | 2 | No REST template search | API | M | Med |
 | 3 | Strict EIP-55 + unhelpful error | API | S | High |
-| 4 | Address book has no API | API | M | Med |
+| 4 | Address book API exists but is undocumented — `GET/POST /api/address-book` work (verified live), but no docs mention them; the "add from dashboard" flow is the only documented path | docs | S | Med |
 | 5 | No wallet address/balance endpoint | API | S | Med |
 | 6 | `inputSchema` null — inputs in node configs | API | M | High |
 | 7 | No testnet faucet | Product | M | Med |
