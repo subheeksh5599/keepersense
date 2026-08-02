@@ -273,7 +273,7 @@ VITE_CHAIN=sepolia             # chain used by the pipeline UI (default: sepolia
 ```
 keepersense/
 ├── server/
-│   ├── mcp_server.py          # MCP HTTP server with 5 tools (real KeeperHub API)
+│   ├── mcp_server.py          # MCP HTTP server with 7 tools (real KeeperHub API)
 │   ├── test_scoring.py        # unit tests for scoring/schema/tx logic
 │   └── requirements.txt       # httpx, uvicorn
 ├── api/
