@@ -25,6 +25,8 @@ Built with the Hermes Agent KeeperHub plugin. Seven MCP tools. One pipeline.
 | Direct org-workflow execution (source demo transfer) | `0xb942c4a8…97c7f` | https://sepolia.etherscan.io/tx/0xb942c4a8d9ef00209b2dbf4009e9330f898908d7db1b93cddffee121de297c7f |
 | Full pipeline via the local server (fresh clone → boot → 5-tool flow) | `0xf1b6b2d5…f50855c9` | https://sepolia.etherscan.io/tx/0xf1b6b2d56ae841c408a45b5b829d4537dd20572c848b045e820c1d77f50855c9 |
 | Live-site browser drive (audit trail, tx panel) | `0x2085c9dd…98efb6` | https://sepolia.etherscan.io/tx/0x2085c9dd0dcec37d498ea3858cce1869a58ba9a3b4cf477f7379da50e498efb6 |
+| Frontend drive (live-site run, pre-fix bundle) | `0xe6da37e7…1ca56` | https://sepolia.etherscan.io/tx/0xe6da37e7635d65fe6371fb48e7f02fdb92b9806a6229ee30c94ad6015ec1ca56 |
+| Frontend drive (post-fix bundle: summaries + JSON toggle) | `0x0ca7010f…326026` | https://sepolia.etherscan.io/tx/0x0ca7010fdf7de7181124be91019484f911f72987fdb12fbec42bc31773264026 |
 
 ---
 
