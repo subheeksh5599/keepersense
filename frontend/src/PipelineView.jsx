@@ -389,7 +389,7 @@ export default function PipelineView() {
 
           <div className="pl-foot">
             <span className="mono">KEEPERHUB API · app.keeperhub.com/api</span>
-            <span className="mono">5 TOOLS · 1 PIPELINE · AUDIT TRAIL</span>
+            <span className="mono">7 TOOLS · 1 PIPELINE · AUDIT TRAIL</span>
           </div>
         </div>
       </main>

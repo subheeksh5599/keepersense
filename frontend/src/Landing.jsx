@@ -49,8 +49,8 @@ const JOURNAL = [
   {
     no: '03',
     title: 'Configuration',
-    body: 'The matched workflow\u2019s input schema is resolved automatically. Defaults are filled, required parameters are flagged — the agent never guesses inputs.',
-    meta: ['ENDPOINT: GET /api/workflows/{id}', 'SOURCE: inputSchema', 'OUTPUT: ready flag'],
+    body: 'The matched workflow\\u2019s parameters are resolved from its node configuration and live chain state — balance, block number — so the agent never guesses inputs (KeeperHub\\u2019s inputSchema is null).',
+    meta: ['ENDPOINT: GET /api/workflows/{id}', 'SOURCE: node config + live chain', 'OUTPUT: ready flag'],
   },
   {
     no: '04',

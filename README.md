@@ -9,9 +9,9 @@
 
 </div>
 
-KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from its input schema, deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder.
+KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from the workflow's node configuration and live chain state (KeeperHub's inputSchema is null, so KeeperSense reads the real inputs), deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder.
 
-Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
+Built with the Hermes Agent KeeperHub plugin. Seven MCP tools. One pipeline.
 
 **Live onchain — executed through KeeperHub (Sepolia):**
 
@@ -23,6 +23,8 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 | Pipeline transfer to the demo recipient wallet (0xc143…2957) | `0x89c3e7d6…8fabdd` | https://sepolia.etherscan.io/tx/0x89c3e7d670045dfc36be5a55e037cb7861456cd5199a8d19c72d33e04b8fabdd |
 | Retry demo: failed attempt (999 ETH) → adjusted → success | `0xccb87e52…c703d` | https://sepolia.etherscan.io/tx/0xccb87e52bdcfda6d5c8c0fadcd5fe6db875e9b08a625b0e01ecf75c134cc703d |
 | Direct org-workflow execution (source demo transfer) | `0xb942c4a8…97c7f` | https://sepolia.etherscan.io/tx/0xb942c4a8d9ef00209b2dbf4009e9330f898908d7db1b93cddffee121de297c7f |
+| Full pipeline via the local server (fresh clone → boot → 5-tool flow) | `0xf1b6b2d5…f50855c9` | https://sepolia.etherscan.io/tx/0xf1b6b2d56ae841c408a45b5b829d4537dd20572c848b045e820c1d77f50855c9 |
+| Live-site browser drive (audit trail, tx panel) | `0x2085c9dd…98efb6` | https://sepolia.etherscan.io/tx/0x2085c9dd0dcec37d498ea3858cce1869a58ba9a3b4cf477f7379da50e498efb6 |
 
 ---
 
@@ -87,7 +89,10 @@ Until `KH_API_KEY` is set, the tools return a structured `kh_api_key_not_set` er
 Searches KeeperHub's workflow API (`GET /api/workflows/public`), scores each against the intent using keyword and semantic matching. Returns ranked results with confidence scores.
 
 **3· KeeperSense configures parameters**
-Fetches the workflow's `inputSchema` and auto-fills defaults, flagging any required parameters the agent must supply.
+Fetches the workflow and resolves its parameters from the node configuration,
+reading live chain state (wallet balance, block number) to fill and validate
+inputs; flags anything the agent must supply. (KeeperHub's API returns
+`inputSchema: null`, so KeeperSense reads the actual inputs from the nodes.)
 
 **4· KeeperSense deploys the workflow**
 Clones the matched workflow (`POST /api/workflows/{id}/duplicate`), returning a new workflow ID ready for execution.
