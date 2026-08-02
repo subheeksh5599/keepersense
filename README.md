@@ -40,7 +40,7 @@ Everything below is live and clickable.
 
 **Live API.** `https://keepersense.vercel.app/api` — the MCP server: `tools/list` + 7 `ks_*` tools, bring-your-own-key (any KeeperHub org can drive it with its own `Authorization: Bearer kh_...`).
 
-**KeeperHub surfaces used.** REST API (all 7 tools), hosted MCP server (full `initialize` → `notifications/initialized` handshake; our contract-call tx was verified through their `get_direct_execution_status` tool), direct-execution endpoints (`/api/execute/transfer` + `/api/execute/contract-call`, gas-sponsored), workflow builder (the demo transfer workflow), and the audit trail (`status` + `logs` normalized in `ks_status`).
+**KeeperHub surfaces used.** REST API (all 7 tools), hosted MCP server (full `initialize` → `notifications/initialized` handshake; our contract-call tx was verified through their `get_direct_execution_status` tool, and the demo workflow was published to the marketplace through their `list_workflow` tool), direct-execution endpoints (`/api/execute/transfer` + `/api/execute/contract-call`, gas-sponsored), workflow builder (the demo transfer workflow), the audit trail (`status` + `logs` normalized in `ks_status`), and the **marketplace** (live listing: `keepersense-demo-transfer`, $0.01).
 
 **On Sepolia.** 11 transactions executed through KeeperHub, all confirmed on-chain:
 
