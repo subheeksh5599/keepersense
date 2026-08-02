@@ -16,3 +16,4 @@ dist/
 /TEST_RESULTS.md
 /*checklist*.md
 /*pitch*.md
+.vercel_python_packages/
