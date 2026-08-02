@@ -22,7 +22,7 @@ _CORS = [
     (b"content-type", b"application/json"),
     (b"access-control-allow-origin", b"*"),
     (b"access-control-allow-methods", b"POST, OPTIONS"),
-    (b"access-control-allow-headers", b"content-type"),
+    (b"access-control-allow-headers", b"content-type, authorization, x-api-key"),
 ]
 
 
@@ -47,6 +47,19 @@ async def app(scope, receive, send):
         payload = {"jsonrpc": "2.0", "id": None,
                    "error": {"code": -32000, "message": "server import failed"}}
     else:
+        # BYOK: forward the request-scoped key from headers (mcp_app does this
+        # under uvicorn; Vercel calls handle_mcp_request directly, so do it here).
+        mcp_server._request_key.set("")
+        try:
+            for k, v in scope.get("headers", []):
+                name = k.decode("latin-1").lower()
+                val = v.decode("latin-1").strip()
+                if name == "authorization" and val.lower().startswith("bearer "):
+                    mcp_server._request_key.set(val[7:].strip())
+                elif name == "x-api-key" and not mcp_server._request_key.get():
+                    mcp_server._request_key.set(val)
+        except Exception:
+            pass
         try:
             payload = json.loads(body) if body else {}
             payload = await mcp_server.handle_mcp_request(payload)
