@@ -16,7 +16,7 @@
 
 KeeperSense is the intelligence layer that lets any AI agent execute onchain without knowing how KeeperHub works. An agent says what it wants in English — "protect my vault," "distribute rewards," "monitor this contract" — and KeeperSense discovers the right workflow, auto-configures every parameter from the workflow's node configuration and live chain state, deploys a workflow instance, executes it, and returns the transaction hash plus the full audit trail. The agent never touches the workflow builder. Built on KeeperHub's execution engine — **seven MCP tools, one pipeline, every transaction real.**
 
-**[ Live demo ↗ ](https://keepersense.vercel.app)** &nbsp;·&nbsp; **[ Watch the demo ↗ ](#-demo)** &nbsp;·&nbsp; **[ How it works ↗ ](#how-keepersense-works)** &nbsp;·&nbsp; **[ Try the API ↗ ](#try-it-against-the-live-api-5-minutes)** &nbsp;·&nbsp; **[ Run it locally ↗ ](#run-it-locally)**
+**[ Live demo ↗ ](https://keepersense.vercel.app)** &nbsp;·&nbsp; **[ See the pipeline ↗ ](#-the-pipeline)** &nbsp;·&nbsp; **[ How it works ↗ ](#how-keepersense-works)** &nbsp;·&nbsp; **[ Try the API ↗ ](#try-it-against-the-live-api-5-minutes)** &nbsp;·&nbsp; **[ Run it locally ↗ ](#run-it-locally)**
 
 </div>
 
