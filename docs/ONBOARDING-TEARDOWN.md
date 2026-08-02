@@ -68,5 +68,11 @@ Getting Sepolia ETH into the wallet required an external faucet (the docs' "fund
 | 5 | No wallet address/balance endpoint | API | S | Med |
 | 6 | `inputSchema` null — inputs in node configs | API | M | High |
 | 7 | No testnet faucet | Product | M | Med |
+| 8 | Node configuration not exposed via API — template inputs can't be filled programmatically (e.g. an Aave monitor's `user` stays `""` and execution fails with `user: address is missing`; no endpoint returns raw node configs) | API | M | High |
+| 9 | No delete-execution API — workflows with run history can't be deleted (`409 Workflow has execution history`), so duplicated clones accumulate | API | S | Low |
 
-The pattern across all seven: **KeeperHub is agent-ready on the execution side but the discovery/configuration side still assumes a human in the dashboard.** Fixing 3 and 6 alone would make first-time agent integrations dramatically smoother.
+The pattern across all nine: **KeeperHub is agent-ready on the execution side but the discovery/configuration side still assumes a human in the dashboard.** Fixing 3, 6, and 8 alone would make first-time agent integrations dramatically smoother.
+
+## Follow-up
+
+A pull request fixing gaps 1 and 3 in the docs (base-URL clarification + corrected EIP-55 example and validation rules) is open at [KeeperHub/keeperhub#1871](https://github.com/KeeperHub/keeperhub/pull/1871).

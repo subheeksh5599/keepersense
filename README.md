@@ -35,6 +35,8 @@ Built with the Hermes Agent KeeperHub plugin. Five MCP tools. One pipeline.
 - [What's real vs pending](#whats-real-vs-pending)
 - [Run it locally](#run-it-locally)
 - [Verify it works](#verify-it-works)
+- [Try it against the live API](#try-it-against-the-live-api-5-minutes)
+- [FAQ](#faq)
 - [Configuration](#configuration)
 - [Project layout](#project-layout)
 - [Tech stack](#tech-stack)
@@ -106,51 +108,30 @@ audit = await mcp.call("ks_status", {"execution_id": executed["execution_id"]})
 
 ## Architecture
 
-```
-Hermes Agent
-    │  natural language intent
-    ▼
-┌──────────────────────────────┐
-│     KeeperSense MCP Server   │  ← we built this
-│                              │
-│  ks_discover()  ──────────┐  │
-│  ks_configure() ───┐      │  │  workflow search + scoring
-│  ks_deploy()      │      │  │  input schema resolution
-│  ks_execute()     │      │  │  workflow cloning + execution
-│  ks_status()      │      │  │  audit trail polling
-└────────────────────┼──────┼──┘
-                     │      │
-                     ▼      ▼
-┌──────────────────────────────────┐
-│        KeeperHub API             │  ← they provide this
-│  https://app.keeperhub.com/api   │
-│                                  │
-│  GET  /workflows/public          │
-│  GET  /workflows/{id}            │
-│  POST /workflows/{id}/duplicate  │
-│  POST /workflows/{id}/execute    │
-│  GET  /workflows/executions/{id} │
-│       /status · /logs            │
-└──────────────────┬───────────────┘
-                   │
-                   ▼
-┌──────────────────────────────────┐
-│         KeeperHub Engine         │
-│                                  │
-│  Gas estimation · Retry logic    │
-│  Private routing · Nonce mgmt    │
-│  Turnkey signing · Audit trail   │
-└──────────────────┬───────────────┘
-                   │
-                   ▼
-              Ethereum · Base · Arbitrum
-              Polygon · Sepolia
+```mermaid
+flowchart TD
+    A[AI Agent — Hermes, Claude, any MCP client] -->|natural language intent| B
+    B[KeeperSense MCP Server — the decision layer] --> C{ks_discover}
+    B --> D{ks_configure}
+    B --> E{ks_deploy}
+    B --> F{ks_execute}
+    B --> G{ks_status}
+    C -->|intent scoring + free-tier filter + chain label| H[(KeeperHub workflow registry)]
+    D -->|inputSchema + live chain reads: balance, block| I[(Public RPC)]
+    E -->|clone via /duplicate| H
+    F -->|execute + poll + retry| J[KeeperHub Execution Engine]
+    J -->|gas estimation, signing, audit trail| K[(Ethereum · Sepolia · Base)]
+    G -->|status + logs + tx hash| K
+    F -.->|optional: EIP-3009 auto-pay| L[ks_pay — x402 via @keeperhub/wallet]
+    D -.->|optional: ERC-8004 identity| M[ks_identity]
+    style B fill:#0066FF,color:#fff
+    style J fill:#14151a,color:#fff
 ```
 
 | Component | Technology | Responsibility |
 |---|---|---|
 | Agent runtime | Hermes Agent | Natural language reasoning, intent formulation |
-| KeeperSense MCP | Python + httpx + uvicorn | Intent-to-workflow bridge: discover, configure, deploy, execute, audit |
+| KeeperSense MCP | Python + httpx + uvicorn | Intent-to-workflow bridge: discover, configure, deploy, execute, audit (7 tools) |
 | KeeperHub API | `app.keeperhub.com/api` (Bearer `kh_` key) | Workflow registry, execution engine, audit logs |
 | Frontend | Vite + React 18 | Single-page pipeline visualizer |
 | Chains | Sepolia testnet | Transaction execution (mainnet available via gas sponsorship) |
@@ -214,6 +195,56 @@ curl -s -X POST http://localhost:8765 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
+
+## Try it against the live API (5 minutes)
+
+The deployed server at `https://keepersense.vercel.app/api` answers the same
+JSON-RPC calls the demo UI makes. You need a KeeperHub API key.
+
+```bash
+# 1. Discover — free-tier org workflows scored against your intent
+curl -s -X POST https://keepersense.vercel.app/api \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ks_discover","arguments":{"intent":"transfer 0.001 eth"}}}'
+
+# 2. Configure — fills params, reading live chain state
+# 3. Deploy — clones the workflow into your org
+# 4. Execute — runs it onchain (Sepolia), polls until the tx lands
+# 5. Status — returns the audit trail: tx hash + explorer link
+```
+
+Point any MCP client (Claude Desktop, Hermes, etc.) at
+`https://keepersense.vercel.app/api` with your `kh_` key to drive the same
+pipeline from an agent. The demo site is the same pipeline with a UI.
+
+## FAQ
+
+**Q: Whose wallet pays for the demo transactions?**
+A: The KeeperHub organization wallet (0x1776…4bBf) funds every run — the
+visitor's wallet is never involved. The demo transfers 0.001 ETH to the
+configured recipient (0xc143…2957) as onchain proof. Recipients are validated
+by KeeperHub's strict EIP-55 checksum + address book, so they can't be
+redirected from the pipeline.
+
+**Q: Why are some workflows hidden from discovery?**
+A: Free tier. Marketplace workflows can't be cloned or executed on a free plan
+(KeeperHub returns 402 `upgrade_required` / 404). ks_discover filters them by
+default and reports how many were hidden; pass `include_marketplace: true` on a
+paid plan to include them.
+
+**Q: Is the API key exposed in the browser?**
+A: No. The key lives only in the Vercel serverless function (`api/index.py`);
+the client bundle ships zero secrets (verified: no `kh_` strings in the HTML/JS).
+
+**Q: Why do some discovered workflows fail to execute?**
+A: Template workflows (e.g. the Aave monitors) have empty node inputs that the
+KeeperHub API doesn't expose for programmatic configuration (see
+[teardown gap #8](docs/ONBOARDING-TEARDOWN.md)). The demo transfer executes
+end-to-end because its inputs are fully configured.
+
+**Q: Can any agent framework use this?**
+A: Yes — the server speaks JSON-RPC MCP (tools/list + tools/call). Any MCP
+client can call the 7 `ks_*` tools without knowing KeeperHub's API surface.
 
 ---
 
