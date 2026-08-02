@@ -24,6 +24,8 @@ deployment's `/api` endpoint.
 
 - `KH_API_KEY` (required for live calls) — set via `export KH_API_KEY=$(grep KH_API_KEY .env | cut -d= -f2)`
   or read from `.env`. `.env` is gitignored, chmod 600.
+- BYOK: the server also accepts a per-request key via `Authorization: Bearer kh_...`
+  or `x-api-key: kh_...` headers (header wins over env).
 - `VITE_CHAIN` (frontend, default `sepolia`) · `KEEPERHUB_CHAIN` · `KEEPERHUB_BASE`.
 - Optional: `AGENTIC_WALLET_*` (ks_pay), `KEEPERHUB_IDENTITY_REGISTRY` (ks_identity),
   `KEEPERHUB_RPC_OVERRIDE`.

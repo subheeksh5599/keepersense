@@ -224,6 +224,23 @@ Point any MCP client (Claude Desktop, Hermes, etc.) at
 `https://keepersense.vercel.app/api` with your `kh_` key to drive the same
 pipeline from an agent. The demo site is the same pipeline with a UI.
 
+### Bring your own key (BYOK)
+
+The server is multi-tenant: it reads the API key from each request's
+`Authorization: Bearer kh_...` header (or `x-api-key: kh_...`), falling back to
+the server's `KH_API_KEY` env var when no header is sent. Any KeeperHub
+organization can drive the deployed endpoint (or a self-hosted copy) with its
+own key:
+
+```bash
+curl -s -X POST https://keepersense.vercel.app/api \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer kh_your_own_key' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ks_discover","arguments":{"intent":"protect my vault"}}}'
+```
+
+Requests without a header use the server's env key (how the demo site works).
+
 ## FAQ
 
 **Q: Whose wallet pays for the demo transactions?**

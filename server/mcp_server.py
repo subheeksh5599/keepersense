@@ -21,6 +21,7 @@ import json
 import os
 import re
 import asyncio
+import contextvars
 import httpx
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
@@ -32,6 +33,15 @@ KH_MAX_RETRIES = int(os.environ.get("KEEPERHUB_MAX_RETRIES", "2"))
 KH_POLL_SECONDS = float(os.environ.get("KEEPERHUB_POLL_SECONDS", "3"))
 KH_POLL_LIMIT = int(os.environ.get("KEEPERHUB_POLL_LIMIT", "20"))
 DEFAULT_CHAIN = os.environ.get("KEEPERHUB_CHAIN", "sepolia")
+
+# Request-scoped API key (bring-your-own-key): set per HTTP request from the
+# Authorization / x-api-key headers, falling back to the KH_API_KEY env var.
+_request_key: contextvars.ContextVar[str] = contextvars.ContextVar("kh_request_key", default="")
+
+
+def active_key() -> str:
+    """API key for the current request: header key wins, else env KH_API_KEY."""
+    return _request_key.get().strip() or KH_API_KEY
 
 EXPLORER_URLS = {
     "ethereum": "https://etherscan.io/tx/{}",
@@ -47,9 +57,8 @@ EXPLORER_URLS = {
 def missing_key_error() -> dict:
     return {
         "error": "kh_api_key_not_set",
-        "detail": "KH_API_KEY environment variable is not set.",
-        "hint": "Get an org API key from app.keeperhub.com → Settings → API Keys, then export KH_API_KEY=kh_...",
-        "docs": "https://docs.keeperhub.com/api",
+        "detail": "No KeeperHub API key for this request.",
+        "hint": "Pass Authorization: Bearer kh_... (or x-api-key: kh_...) on the request, or set KH_API_KEY on the server (app.keeperhub.com → Settings → API Keys).",
     }
 
 
@@ -410,9 +419,10 @@ def tx_hash_of(result: dict) -> str:
 
 async def kh_request(method: str, path: str, **kwargs) -> tuple[int, Any]:
     """One authenticated request to KeeperHub. Returns (status, parsed_json)."""
-    if not KH_API_KEY:
+    key = active_key()
+    if not key:
         return 401, missing_key_error()
-    headers = {"Authorization": f"Bearer {KH_API_KEY}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     async with httpx.AsyncClient(base_url=KH_BASE, headers=headers, timeout=KH_TIMEOUT) as c:
         resp = await c.request(method, path, **kwargs)
         try:
@@ -434,7 +444,7 @@ async def ks_discover(intent: str, free_only: bool = True, limit: int = 10,
     only — include_marketplace=True enables marketplace results for
     paid-plan orgs. free_only additionally drops paid/premium listings.
     """
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     items: list = []
@@ -494,7 +504,7 @@ async def ks_configure(workflow_id: str, chain: str = DEFAULT_CHAIN, params: dic
     wid = workflow_id or template_id  # template_id kept for frontend compatibility
     if not wid:
         return {"error": "missing_workflow_id", "detail": "Pass workflow_id (or template_id)."}
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     status, data = await kh_request("GET", f"/api/workflows/{wid}")
@@ -536,7 +546,7 @@ async def ks_deploy(source_workflow_id: str, chain: str = DEFAULT_CHAIN,
     wid = source_workflow_id or template_id
     if not wid:
         return {"error": "missing_workflow_id", "detail": "Pass source_workflow_id (or template_id)."}
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     body: dict = {}
@@ -583,7 +593,7 @@ async def ks_execute(workflow_id: str, input: dict | None = None, chain: str = D
     """Execute a deployed workflow. Retries on failure (KeeperHub gas handling)."""
     if not workflow_id:
         return {"error": "missing_workflow_id", "detail": "Pass workflow_id."}
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     max_retries = KH_MAX_RETRIES if retries is None else int(retries)
@@ -649,7 +659,7 @@ async def ks_status(execution_id: str, chain: str = DEFAULT_CHAIN, run_id: str |
     eid = execution_id or run_id  # run_id kept for frontend compatibility
     if not eid:
         return {"error": "missing_execution_id", "detail": "Pass execution_id."}
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     status, data = await kh_request("GET", f"/api/workflows/executions/{eid}/status")
@@ -778,7 +788,7 @@ async def ks_identity(action: str = "status", name: str = "KeeperSense",
     if not registry:
         return {"error": "erc8004_not_configured",
                 "detail": "Set KEEPERHUB_IDENTITY_REGISTRY to an ERC-8004 registry address to register."}
-    if not KH_API_KEY:
+    if not active_key():
         return missing_key_error()
 
     # register(name, metadataUri) — registry ABI is configurable via env
@@ -951,6 +961,20 @@ async def handle_mcp_request(request: dict) -> dict:
 async def mcp_app(scope, receive, send):
     """ASGI app for MCP HTTP server."""
     if scope["type"] == "http":
+        # Bring-your-own-key: read the API key from request headers so any
+        # KeeperHub user can drive this server with their own key.
+        _request_key.set("")
+        try:
+            for k, v in scope.get("headers", []):
+                name = k.decode("latin-1").lower()
+                val = v.decode("latin-1").strip()
+                if name == "authorization" and val.lower().startswith("bearer "):
+                    _request_key.set(val[7:].strip())
+                elif name == "x-api-key" and not _request_key.get():
+                    _request_key.set(val)
+        except Exception:
+            pass
+
         body = b""
         more_body = True
         while more_body:

@@ -190,6 +190,18 @@ def test_chain_rpc_url_override():
             os.environ["KEEPERHUB_RPC_OVERRIDE"] = old
 
 
+def test_active_key_precedence():
+    """BYOK: request-scoped key wins over the env KH_API_KEY."""
+    from mcp_server import _request_key, active_key, KH_API_KEY
+    _request_key.set("kh_request_key_xyz")
+    try:
+        assert active_key() == "kh_request_key_xyz"
+        _request_key.set("   ")
+        assert active_key() == KH_API_KEY  # falls back to env (empty in tests)
+    finally:
+        _request_key.set("")
+
+
 # ── free-tier filtering ────────────────────────────────────────────
 
 def test_workflow_is_paid():
